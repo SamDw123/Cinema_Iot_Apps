@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "username": "manager1",
+    "passwordHash": "<hash_van_wachtwoord>",
+    "role": "manager"
+  },
+  {
+    "id": 2,
+    "username": "user1",
+    "passwordHash": "<hash_van_wachtwoord>",
+    "role": "user"
+  },
+  {
+    "id": 3,
+    "username": "Sam De Wispelaere",
+    "passwordHash": "$2b$10$BuaQXiDG.tGeyKJtuC8k5u0fBkkC8jI45JcdiTBw9l4edFDb5.CdC",
+    "role": "manager"
+  },
+  {
+    "id": 4,
+    "username": "Joren Vandewalle",
+    "passwordHash": "$2b$10$iM/HQDf177tgoHXCzC/uve6eN827ECPzjpdzTxEOF1gOE29EBBXHu",
+    "role": "user"
+  }
+]
