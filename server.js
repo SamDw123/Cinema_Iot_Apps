@@ -69,10 +69,32 @@ function saveScreenings(screenings) {
 }
 
 // 1) GET /screenings — lijst alle voorstellingen
-app.get('/screenings', (req, res) => {
+app.get('/screenings', async (req, res) => {
   const screenings = loadScreenings();
-  res.json(screenings);
+
+  // Verrijk elke screening met filmgegevens van TMDB
+  const enrichedScreenings = await Promise.all(
+    screenings.map(async screening => {
+      try {
+        const response = await tmdb.get(`/movie/${screening.movieId}`);
+        const movie = response.data;
+
+        return {
+          ...screening,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date
+        };
+      } catch (err) {
+        console.error(`Kon filmdata niet ophalen voor ID ${screening.movieId}`, err.message);
+        return screening; // fallback als er iets foutgaat
+      }
+    })
+  );
+
+  res.json(enrichedScreenings);
 });
+
 
 // 2) POST /screenings — nieuwe voorstelling aanmaken (Manager-only)
 app.post('/screenings', express.json(), (req, res) => {

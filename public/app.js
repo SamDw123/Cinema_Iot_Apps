@@ -32,16 +32,19 @@ async function fetchScreenings() {
   }
 }
 
-function renderScreenings(screenings) {
+function renderScreenings(screenings, movies) {
   const list = document.getElementById('screenings-list');
   if (!screenings.length) {
     list.innerHTML = '<li>Geen voorstellingen beschikbaar.</li>';
     return;
   }
+
   list.innerHTML = screenings.map(s => `
     <li>
-      🎬 Film ID ${s.movieId} — ${new Date(s.startTime).toLocaleString()} 
-      (${s.availableSeats}/${s.totalSeats} plekken vrij)
+      <strong>${s.title}</strong><br/>
+      <img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title}"/><br/>
+      ${new Date(s.startTime).toLocaleString()}<br/>
+      ${s.availableSeats}/${s.totalSeats} vrij
     </li>
   `).join('');
 }
@@ -53,6 +56,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderMovies(movies);
 
   const screenings = await fetchScreenings();
-  renderScreenings(screenings);
+  renderScreenings(screenings, movies);
 });
 
