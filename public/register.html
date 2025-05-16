@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registreren</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <main class="login-container">
+    <h1>Registreren</h1>
+    <form id="register-form">
+      <label>
+        Gebruikersnaam
+        <input type="text" name="username" required/>
+      </label>
+      <label>
+        Wachtwoord
+        <input type="password" name="password" required/>
+      </label>
+      <label>
+        Rol
+        <select name="role">
+          <option value="user">User</option>
+          <option value="manager">Manager</option>
+        </select>
+      </label>
+      <button type="submit">Registreer</button>
+    </form>
+    <p id="register-error" class="error" style="display:none;color:red"></p>
+    <p>Heb je al een account? <a href="login.html">Log in</a></p>
+  </main>
+  <script src="register.js"></script>
+</body>
+</html>

@@ -22,5 +22,17 @@
     "username": "Joren Vandewalle",
     "passwordHash": "$2b$10$iM/HQDf177tgoHXCzC/uve6eN827ECPzjpdzTxEOF1gOE29EBBXHu",
     "role": "user"
+  },
+  {
+    "id": 5,
+    "username": "OneJxv",
+    "passwordHash": "$2b$10$L6hBpbzRMARYm6i8AS/74u7tp8XvxSdNVAYAEQs8OI2oXTBiZvOgy",
+    "role": "user"
+  },
+  {
+    "id": 6,
+    "username": "jorenM",
+    "passwordHash": "$2b$10$g965JuugiZFXo7Bzd7RvZupyMopBfGcJO1AtnTUlEHwLst2QiQeqG",
+    "role": "manager"
   }
 ]
