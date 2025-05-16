@@ -33,8 +33,7 @@ const tmdb = axios.create({
 
 // Storage helpers
 function loadJson(filename) {
-  const data = fs.readFileSync(path.join(__dirname, filename));
-  return JSON.parse(data);
+  return JSON.parse(fs.readFileSync(path.join(__dirname, filename)));
 }
 function saveJson(filename, data) {
   fs.writeFileSync(
@@ -131,7 +130,10 @@ app.get('/screenings', (req, res) => {
   const screenings = loadJson('screenings.json');
   res.json(screenings);
 });
-app.post('/screenings',authenticateJWT,authorizeRole('manager'),
+app.post(
+  '/screenings',
+  authenticateJWT,
+  authorizeRole('manager'),
   (req, res) => {
     const screenings = loadJson('screenings.json');
     const { movieId, startTime, totalSeats } = req.body;
@@ -147,7 +149,10 @@ app.post('/screenings',authenticateJWT,authorizeRole('manager'),
     res.status(201).json(newScreening);
   }
 );
-app.put('/screenings/:id',authenticateJWT,authorizeRole('manager'),
+app.put(
+  '/screenings/:id',
+  authenticateJWT,
+  authorizeRole('manager'),
   (req, res) => {
     const screenings = loadJson('screenings.json');
     const id = parseInt(req.params.id, 10);
@@ -159,7 +164,11 @@ app.put('/screenings/:id',authenticateJWT,authorizeRole('manager'),
     res.json(updated);
   }
 );
-app.delete('/screenings/:id',authenticateJWT,authorizeRole('manager'),(req, res) => {
+app.delete(
+  '/screenings/:id',
+  authenticateJWT,
+  authorizeRole('manager'),
+  (req, res) => {
     let screenings = loadJson('screenings.json');
     const id = parseInt(req.params.id, 10);
     screenings = screenings.filter(s => s.id !== id);
@@ -173,9 +182,9 @@ app.post(
   '/reserve',
   authenticateJWT,
   (req, res) => {
-    // zowel users als managers mogen reserveren
-    if (!['user', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Niet geautoriseerd om te reserveren' });
+    // alleen role user toegestaan
+    if (req.user.role !== 'user') {
+      return res.status(403).json({ error: 'Alleen gewone gebruikers mogen reserveren' });
     }
     const { screeningId } = req.body;
     const screenings = loadJson('screenings.json');
@@ -185,9 +194,14 @@ app.post(
     if (scr.availableSeats < 1) {
       return res.status(400).json({ error: 'Geen plaatsen meer beschikbaar' });
     }
-    // tickets verlagen
+    // controleer of user al een ticket heeft voor deze screening
+    if (tickets.some(t => t.screeningId === screeningId && t.userId === req.user.userId)) {
+      return res.status(400).json({ error: 'Je hebt al een ticket voor deze voorstelling' });
+    }
+    // verlaag beschikbaarheid
     scr.availableSeats--;
     saveJson('screenings.json', screenings);
+    // maak nieuw ticket
     const newTicket = {
       id: tickets.length ? tickets[tickets.length - 1].id + 1 : 1,
       screeningId,
@@ -199,11 +213,13 @@ app.post(
   }
 );
 
+// ---- Availability endpoint for real-time updates ----
 app.get('/screenings/:id/tickets', (req, res) => {
   const screeningId = parseInt(req.params.id, 10);
-  const tickets = loadJson('tickets.json');
-  const filtered = tickets.filter(t => t.screeningId === screeningId);
-  res.json(filtered);
+  const screenings = loadJson('screenings.json');
+  const scr = screenings.find(s => s.id === screeningId);
+  if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
+  res.json({ availableSeats: scr.availableSeats });
 });
 
 // Start server

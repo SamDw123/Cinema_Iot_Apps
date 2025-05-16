@@ -2,43 +2,25 @@
   {
     "id": 1,
     "username": "manager1",
-    "passwordHash": "<hash_van_wachtwoord>",
+    "passwordHash": "$2b$10$Wk.FAK5pwfKSuZZTICBoUezS0FF9Ov51p14APJXAfj.meeDDmVlR.",
     "role": "manager"
   },
   {
     "id": 2,
     "username": "user1",
-    "passwordHash": "<hash_van_wachtwoord>",
+    "passwordHash": "$2b$10$0hidt7pSy58cHHUrcD0LhuZ29mEe4Ou3mMj.OEeTD2pko03MhkHc.",
     "role": "user"
   },
   {
     "id": 3,
-    "username": "Sam De Wispelaere",
-    "passwordHash": "$2b$10$BuaQXiDG.tGeyKJtuC8k5u0fBkkC8jI45JcdiTBw9l4edFDb5.CdC",
-    "role": "manager"
+    "username": "user2",
+    "passwordHash": "$2b$10$yH8nm9ZCo6I1Ag0qDpdNJ.HNsulcbh1d.XGPY5sCX0MlslG5InFcC",
+    "role": "user"
   },
   {
     "id": 4,
-    "username": "Joren Vandewalle",
-    "passwordHash": "$2b$10$iM/HQDf177tgoHXCzC/uve6eN827ECPzjpdzTxEOF1gOE29EBBXHu",
+    "username": "user3",
+    "passwordHash": "$2b$10$tMa6vcN8eXsAk44zpZWjZu3YtNHkg3FxGRrkuCIGCW/2sCwjBfOQS",
     "role": "user"
-  },
-  {
-    "id": 5,
-    "username": "OneJxv",
-    "passwordHash": "$2b$10$L6hBpbzRMARYm6i8AS/74u7tp8XvxSdNVAYAEQs8OI2oXTBiZvOgy",
-    "role": "user"
-  },
-  {
-    "id": 6,
-    "username": "jorenM",
-    "passwordHash": "$2b$10$g965JuugiZFXo7Bzd7RvZupyMopBfGcJO1AtnTUlEHwLst2QiQeqG",
-    "role": "manager"
-  },
-  {
-    "id": 7,
-    "username": "manager10",
-    "passwordHash": "$2b$10$3/czcUx5p/kNd4.cwWDdeuJ8mNMIkxfCP.yrKb3ymDGZeVxeEplSe",
-    "role": "manager"
   }
 ]
