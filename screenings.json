@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "movieId": 12345,
+    "startTime": "2025-05-20T20:00:00Z",
+    "totalSeats": 120,
+    "availableSeats": 100
+  },
+  {
+    "id": 2,
+    "movieId": 9999,
+    "startTime": "2026-05-20T20:00:00Z",
+    "totalSeats": 160,
+    "availableSeats": 160
+  }
+]
