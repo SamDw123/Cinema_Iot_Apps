@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manager Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <header>
+        <button onclick="location.href='/'">← Home</button>
+        <h1>Manager Dashboard</h1>
+    </header>
+
+    <main class="login-container">
+        <section>
+            <h2>Nieuwe voorstelling toevoegen</h2>
+            <form id="add-form">
+                <label>
+                    Film
+                    <select name="movieId" id="movie-select" required>
+                        <option value="">-- Kies een film --</option>
+                        <!-- Opties worden dynamisch ingeladen -->
+                    </select>
+                </label>
+                <label>
+                    Starttijd
+                    <input type="datetime-local" name="startTime" required />
+                </label>
+                <label>
+                    Stoelen
+                    <input type="number" name="totalSeats" required min="1" />
+                </label>
+                <button type="submit">Toevoegen</button>
+            </form>
+            <p id="add-error" style="color:red;display:none"></p>
+        </section>
+
+        <section>
+            <h2>Bestaande voorstellingen</h2>
+            <ul id="manager-list">
+                <!-- Manager items komen hier -->
+            </ul>
+            <p id="load-error" style="color:red;display:none"></p>
+        </section>
+    </main>
+
+    <script src="manager.js"></script>
+</body>
+
+</html>
