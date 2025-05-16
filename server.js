@@ -16,10 +16,13 @@ app.use(cors({
   credentials: true
 }));
 
-// Serve static frontend bestanden uit '/public'
+// Static files in 'public'
 app.use(express.static('public'));
 
-// Helpers voor TMDB
+// Body parser voor JSON payloads
+app.use(express.json());
+
+// TMDB client setup
 const tmdb = axios.create({
   baseURL: 'https://api.themoviedb.org/3',
   headers: {
@@ -28,47 +31,33 @@ const tmdb = axios.create({
   }
 });
 
-// Helpers voor screenings opslag
-function loadScreenings() {
-  const data = fs.readFileSync(path.join(__dirname, 'screenings.json'));
+// Storage helpers
+function loadJson(filename) {
+  const data = fs.readFileSync(path.join(__dirname, filename));
   return JSON.parse(data);
 }
-function saveScreenings(screenings) {
+function saveJson(filename, data) {
   fs.writeFileSync(
-    path.join(__dirname, 'screenings.json'),
-    JSON.stringify(screenings, null, 2)
+    path.join(__dirname, filename),
+    JSON.stringify(data, null, 2)
   );
 }
 
-// Helpers voor users opslag
-function loadUsers() {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, 'users.json')));
-}
-function saveUsers(users) {
-  fs.writeFileSync(
-    path.join(__dirname, 'users.json'),
-    JSON.stringify(users, null, 2)
-  );
-}
-
-// JWT configuratie
-const JWT_SECRET = process.env.JWT_SECRET || 'eenSuperGeheim';
+// JWT config
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES = '1h';
 
-// Middleware: JWT authenticatie
+// Auth middleware
 function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Geen token meegegeven' });
-
-  const token = authHeader.split(' ')[1];
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ error: 'Geen token meegegeven' });
+  const token = header.split(' ')[1];
   jwt.verify(token, JWT_SECRET, (err, payload) => {
-    if (err) return res.status(403).json({ error: 'Token ongeldig' });
+    if (err) return res.status(403).json({ error: 'Ongeldig token' });
     req.user = payload;
     next();
   });
 }
-
-// Middleware: rol autorisatie
 function authorizeRole(role) {
   return (req, res, next) => {
     if (!req.user || req.user.role !== role) {
@@ -78,47 +67,47 @@ function authorizeRole(role) {
   };
 }
 
-// Auth routes
-app.post('/register', express.json(), async (req, res) => {
+// ---- Auth routes ----
+app.post('/register', (req, res) => {
   const { username, password, role } = req.body;
-  const users = loadUsers();
+  const users = loadJson('users.json');
   if (users.some(u => u.username === username)) {
     return res.status(400).json({ error: 'Gebruikersnaam bestaat al' });
   }
-  const passwordHash = await bcrypt.hash(password, 10);
-  const newUser = {
-    id: users.length ? users[users.length - 1].id + 1 : 1,
-    username,
-    passwordHash,
-    role: role === 'manager' ? 'manager' : 'user'
-  };
-  users.push(newUser);
-  saveUsers(users);
-  res.status(201).json({ message: 'Registratie geslaagd' });
+  bcrypt.hash(password, 10).then(hash => {
+    const newUser = {
+      id: users.length ? users[users.length - 1].id + 1 : 1,
+      username,
+      passwordHash: hash,
+      role: role === 'manager' ? 'manager' : 'user'
+    };
+    users.push(newUser);
+    saveJson('users.json', users);
+    res.status(201).json({ message: 'Registratie geslaagd' });
+  });
 });
 
-app.post('/login', express.json(), async (req, res) => {
+app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  const users = loadUsers();
+  const users = loadJson('users.json');
   const user = users.find(u => u.username === username);
   if (!user) return res.status(401).json({ error: 'Onbekende gebruiker' });
-
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return res.status(401).json({ error: 'Ongeldig wachtwoord' });
-
-  const token = jwt.sign(
-    { userId: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES }
-  );
-  res.json({ token });
+  bcrypt.compare(password, user.passwordHash).then(valid => {
+    if (!valid) return res.status(401).json({ error: 'Ongeldig wachtwoord' });
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
+    res.json({ token });
+  });
 });
 
 app.get('/me', authenticateJWT, (req, res) => {
   res.json(req.user);
 });
 
-// Public TMDB endpoint
+// ---- Movies endpoint ----
 app.get('/movies', async (req, res) => {
   try {
     const page = req.query.page || 1;
@@ -132,46 +121,19 @@ app.get('/movies', async (req, res) => {
     }));
     res.json({ page, movies });
   } catch (err) {
-    console.error('Error fetching movies:', err.message);
+    console.error(err);
     res.status(500).json({ error: 'Kon films niet ophalen' });
   }
 });
 
-// Public screenings GET
-app.get('/screenings', async (req, res) => {
-  const screenings = loadScreenings();
-
-  // Verrijk elke screening met filmgegevens van TMDB
-  const enrichedScreenings = await Promise.all(
-    screenings.map(async screening => {
-      try {
-        const response = await tmdb.get(`/movie/${screening.movieId}`);
-        const movie = response.data;
-
-        return {
-          ...screening,
-          title: movie.title,
-          poster_path: movie.poster_path,
-          release_date: movie.release_date
-        };
-      } catch (err) {
-        console.error(`Kon filmdata niet ophalen voor ID ${screening.movieId}`, err.message);
-        return screening; // fallback als er iets foutgaat
-      }
-    })
-  );
-
-  res.json(enrichedScreenings);
+// ---- Screenings CRUD ----
+app.get('/screenings', (req, res) => {
+  const screenings = loadJson('screenings.json');
+  res.json(screenings);
 });
-
-
-// Manager-only CRUD voor screenings
-app.post('/screenings',
-  authenticateJWT,
-  authorizeRole('manager'),
-  express.json(),
+app.post('/screenings',authenticateJWT,authorizeRole('manager'),
   (req, res) => {
-    const screenings = loadScreenings();
+    const screenings = loadJson('screenings.json');
     const { movieId, startTime, totalSeats } = req.body;
     const newScreening = {
       id: screenings.length ? screenings[screenings.length - 1].id + 1 : 1,
@@ -181,44 +143,68 @@ app.post('/screenings',
       availableSeats: totalSeats
     };
     screenings.push(newScreening);
-    saveScreenings(screenings);
+    saveJson('screenings.json', screenings);
     res.status(201).json(newScreening);
   }
 );
-
-app.put('/screenings/:id',
-  authenticateJWT,
-  authorizeRole('manager'),
-  express.json(),
+app.put('/screenings/:id',authenticateJWT,authorizeRole('manager'),
   (req, res) => {
-    const screenings = loadScreenings();
+    const screenings = loadJson('screenings.json');
     const id = parseInt(req.params.id, 10);
     const idx = screenings.findIndex(s => s.id === id);
     if (idx === -1) return res.status(404).json({ error: 'Niet gevonden' });
-
     const updated = { ...screenings[idx], ...req.body };
     screenings[idx] = updated;
-    saveScreenings(screenings);
+    saveJson('screenings.json', screenings);
     res.json(updated);
   }
 );
-
-app.delete('/screenings/:id',
-  authenticateJWT,
-  authorizeRole('manager'),
-  (req, res) => {
-    let screenings = loadScreenings();
+app.delete('/screenings/:id',authenticateJWT,authorizeRole('manager'),(req, res) => {
+    let screenings = loadJson('screenings.json');
     const id = parseInt(req.params.id, 10);
-    if (!screenings.some(s => s.id === id)) {
-      return res.status(404).json({ error: 'Niet gevonden' });
-    }
     screenings = screenings.filter(s => s.id !== id);
-    saveScreenings(screenings);
+    saveJson('screenings.json', screenings);
     res.status(204).send();
   }
 );
 
-// Server starten
-app.listen(PORT, () => {
-  console.log(`Server draait op http://localhost:${PORT}`);
+// ---- Ticket reservation ----
+app.post(
+  '/reserve',
+  authenticateJWT,
+  (req, res) => {
+    // zowel users als managers mogen reserveren
+    if (!['user', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Niet geautoriseerd om te reserveren' });
+    }
+    const { screeningId } = req.body;
+    const screenings = loadJson('screenings.json');
+    const tickets = loadJson('tickets.json');
+    const scr = screenings.find(s => s.id === screeningId);
+    if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
+    if (scr.availableSeats < 1) {
+      return res.status(400).json({ error: 'Geen plaatsen meer beschikbaar' });
+    }
+    // tickets verlagen
+    scr.availableSeats--;
+    saveJson('screenings.json', screenings);
+    const newTicket = {
+      id: tickets.length ? tickets[tickets.length - 1].id + 1 : 1,
+      screeningId,
+      userId: req.user.userId
+    };
+    tickets.push(newTicket);
+    saveJson('tickets.json', tickets);
+    res.status(201).json(newTicket);
+  }
+);
+
+app.get('/screenings/:id/tickets', (req, res) => {
+  const screeningId = parseInt(req.params.id, 10);
+  const tickets = loadJson('tickets.json');
+  const filtered = tickets.filter(t => t.screeningId === screeningId);
+  res.json(filtered);
 });
+
+// Start server
+app.listen(PORT, () => console.log(`Server draait op http://localhost:${PORT}`));
