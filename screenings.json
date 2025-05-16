@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "id": 1,
+    "movieId": 550,
+    "startTime": "2025-05-20T19:30:00",
+    "totalSeats": 50,
+    "availableSeats": 50
+  }
+]
