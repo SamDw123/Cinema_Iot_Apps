@@ -1,174 +1,156 @@
-// manager.js
-const addForm      = document.getElementById('add-form');
-const addError     = document.getElementById('add-error');
-const listEl       = document.getElementById('manager-list');
-const loadError    = document.getElementById('load-error');
-const movieSelect  = document.getElementById('movie-select');
-const token        = localStorage.getItem('token');
+const movieSelect = document.getElementById('movie-select');
+const addForm = document.getElementById('add-form');
+const addError = document.getElementById('add-error');
+const grid = document.getElementById('screenings-grid');
+const loadError = document.getElementById('load-error');
+const token = localStorage.getItem('token');
 
-// Zorg dat alleen ingelogde manager hier komt
 if (!token || localStorage.getItem('role') !== 'manager') {
-  alert('Je moet ingelogd zijn als manager');
-  window.location.href = '/login.html';
+    alert('Je moet ingelogd zijn als manager');
+    window.location.href = '/login.html';
 }
 
 const headers = {
-  'Content-Type': 'application/json',
-  'Authorization': 'Bearer ' + token
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + token
 };
 
-/**
- * Populeer de film-select dropdown met titels uit /movies
- */
 async function populateMovieSelect() {
-  try {
-    const res = await fetch('http://localhost:4000/movies', { headers });
-    if (!res.ok) throw new Error('Kon films niet laden');
-    const { movies } = await res.json();
-
-    // Clear eventuele placeholder-opties
-    movieSelect.innerHTML = '<option value="">-- Kies een film --</option>';
-
-    movies.forEach(movie => {
-      const opt = document.createElement('option');
-      opt.value = movie.id;
-      opt.textContent = movie.title;
-      movieSelect.appendChild(opt);
-    });
-  } catch (err) {
-    console.error(err);
-    loadError.textContent = err.message;
-    loadError.style.display = 'block';
-  }
-}
-
-/**
- * Ophalen van alle voorstellingen
- */
-async function loadScreenings() {
-  try {
-    const res = await fetch('http://localhost:4000/screenings', { headers });
-    if (!res.ok) throw new Error('Kon voorstellingen niet laden');
-    return await res.json();
-  } catch (err) {
-    loadError.textContent = err.message;
-    loadError.style.display = 'block';
-    return [];
-  }
-}
-
-/**
- * Render de manager‐lijst met bewerk- en verwijderknoppen
- */
-async function renderManagerList() {
-  const screenings = await loadScreenings();
-  listEl.innerHTML = screenings.map(s => `
-    <li data-id="${s.id}">
-      <img src="https://image.tmdb.org/t/p/w45${s.poster_path}" alt="" />
-      <strong>${s.title}</strong> —
-      ${new Date(s.startTime).toLocaleString()} —
-      ${s.availableSeats}/${s.totalSeats} vrij
-      <button class="edit-btn">✏️</button>
-      <button class="delete-btn">🗑️</button>
-    </li>
-  `).join('');
-
-  // Voeg eventlisteners toe
-  document.querySelectorAll('.edit-btn').forEach(btn =>
-    btn.addEventListener('click', onEdit)
-  );
-  document.querySelectorAll('.delete-btn').forEach(btn =>
-    btn.addEventListener('click', onDelete)
-  );
-}
-
-/**
- * Handler voor “Nieuwe voorstelling toevoegen”
- */
-addForm.addEventListener('submit', async e => {
-  e.preventDefault();
-  addError.style.display = 'none';
-
-  const fd = new FormData(addForm);
-  const payload = {
-    movieId: Number(fd.get('movieId')),   // komt nu uit <select>
-    startTime: fd.get('startTime'),
-    totalSeats: Number(fd.get('totalSeats'))
-  };
-
-  try {
-    const res = await fetch('http://localhost:4000/screenings', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Kon niet toevoegen');
+    try {
+        const res = await fetch('http://localhost:4000/movies', { headers });
+        const { movies } = await res.json();
+        movies.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.title;
+            movieSelect.appendChild(opt);
+        });
+    } catch (e) {
+        loadError.textContent = e.message;
+        loadError.style.display = 'block';
     }
-    addForm.reset();
-    await renderManagerList();
-  } catch (err) {
-    addError.textContent = err.message;
-    addError.style.display = 'block';
-  }
+}
+
+async function loadScreenings() {
+    try {
+        const res = await fetch('http://localhost:4000/screenings', { headers });
+        return await res.json();
+    } catch (e) {
+        loadError.textContent = e.message;
+        loadError.style.display = 'block';
+        return [];
+    }
+}
+
+function formatDateTime(dt) {
+    return new Date(dt).toLocaleString();
+}
+
+function renderScreenings(screenings) {
+    grid.innerHTML = '';
+    screenings.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.id = s.id;
+        card.innerHTML = `
+        <img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title}">
+        <h3>${s.title}</h3>
+        <div class="info">
+          <div><strong>Start:</strong> <span class="start-text">${formatDateTime(s.startTime)}</span></div>
+          <div><strong>Stoelen:</strong> <span class="seats-text">${s.availableSeats}/${s.totalSeats}</span></div>
+        </div>
+        <div class="controls">
+          <button class="edit-btn">Bewerk</button>
+          <button class="delete-btn cancel">Verwijder</button>
+        </div>
+      `;
+        grid.appendChild(card);
+    });
+}
+
+async function refresh() {
+    const data = await loadScreenings();
+    renderScreenings(data);
+}
+
+addForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    addError.style.display = 'none';
+    const fd = new FormData(addForm);
+    const payload = {
+        movieId: Number(fd.get('movieId')),
+        startTime: fd.get('startTime'),
+        totalSeats: Number(fd.get('totalSeats'))
+    };
+    try {
+        const res = await fetch('http://localhost:4000/screenings', {
+            method: 'POST',
+            headers, body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Kon niet toevoegen');
+        addForm.reset();
+        await refresh();
+    } catch (err) {
+        addError.textContent = err.message;
+        addError.style.display = 'block';
+    }
 });
 
-/**
- * Handler voor “Bewerken”
- */
-async function onEdit(e) {
-  const li     = e.target.closest('li');
-  const id     = li.dataset.id;
-  const old    = {
-    startTime:  new Date(li.childNodes[2].textContent).toISOString().slice(0,16),
-    totalSeats: li.childNodes[4].textContent.split('/')[1].split(' ')[0]
-  };
+// Event delegation op de grid
+grid.addEventListener('click', async e => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const id = card.dataset.id;
 
-  const newStart = prompt('Nieuwe starttijd (YYYY-MM-DDTHH:MM):', old.startTime);
-  if (!newStart) return;
-  const newSeats = prompt('Nieuw totaal stoelen:', old.totalSeats);
-  if (!newSeats) return;
+    // Verwijderen
+    if (e.target.matches('.delete-btn')) {
+        if (!confirm('Weet je het zeker?')) return;
+        try {
+            const res = await fetch(`http://localhost:4000/screenings/${id}`, {
+                method: 'DELETE', headers
+            });
+            if (!res.ok) throw new Error('Kon niet verwijderen');
+            await refresh();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
 
-  try {
-    const res = await fetch(`http://localhost:4000/screenings/${id}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        startTime: newStart,
-        totalSeats: Number(newSeats)
-      })
-    });
-    if (!res.ok) throw new Error('Kon niet bijwerken');
-    await renderManagerList();
-  } catch (err) {
-    alert(err.message);
-  }
-}
+    // Bewerken / Opslaan
+    if (e.target.matches('.edit-btn')) {
+        const btn = e.target;
+        const startSpan = card.querySelector('.start-text');
+        const seatsSpan = card.querySelector('.seats-text');
 
-/**
- * Handler voor “Verwijderen”
- */
-async function onDelete(e) {
-  const li = e.target.closest('li');
-  const id = li.dataset.id;
-  if (!confirm('Weet je het zeker?')) return;
-  try {
-    const res = await fetch(`http://localhost:4000/screenings/${id}`, {
-      method: 'DELETE',
-      headers
-    });
-    if (!res.ok) throw new Error('Kon niet verwijderen');
-    await renderManagerList();
-  } catch (err) {
-    alert(err.message);
-  }
-}
+        if (btn.textContent === 'Bewerk') {
+            // Zet om naar inputs
+            const oldStart = new Date(startSpan.textContent).toISOString().slice(0, 16);
+            const [avail, total] = seatsSpan.textContent.split('/').map(n => Number(n));
+            startSpan.innerHTML = `<input type="datetime-local" class="edit-input" value="${oldStart}">`;
+            seatsSpan.innerHTML = `<input type="number" min="1" class="edit-input" value="${total}">`;
+            btn.textContent = 'Opslaan';
+            btn.classList.add('cancel'); // optioneel styling
+        } else {
+            // Opslaan
+            const newStart = card.querySelector('input[type="datetime-local"]').value;
+            const newTotal = Number(card.querySelector('input[type="number"]').value);
+            try {
+                const res = await fetch(`http://localhost:4000/screenings/${id}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ startTime: newStart, totalSeats: newTotal })
+                });
+                if (!res.ok) throw new Error('Kon niet bijwerken');
+                await refresh();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+    }
+});
 
-/**
- * Initialisatie: eerst films inladen, dan lijst renderen
- */
-(async function init() {
-  await populateMovieSelect();
-  await renderManagerList();
+// Init
+(async () => {
+    await populateMovieSelect();
+    await refresh();
 })();
