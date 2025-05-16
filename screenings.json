@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "movieId": 550,
+    "title": "Fight Club",
+    "poster_path": "/a26cQPRhJPX6GbWfQbvZdrrp9j9.jpg",
+    "startTime": "2025-05-20T19:30:00",
+    "totalSeats": 50,
+    "availableSeats": 50
+  }
+]
