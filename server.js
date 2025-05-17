@@ -1,11 +1,13 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const axios = require('axios');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const WebSocket = require('ws');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -182,7 +184,6 @@ app.post(
   '/reserve',
   authenticateJWT,
   (req, res) => {
-    // alleen role user toegestaan
     if (req.user.role !== 'user') {
       return res.status(403).json({ error: 'Alleen gewone gebruikers mogen reserveren' });
     }
@@ -194,14 +195,11 @@ app.post(
     if (scr.availableSeats < 1) {
       return res.status(400).json({ error: 'Geen plaatsen meer beschikbaar' });
     }
-    // controleer of user al een ticket heeft voor deze screening
     if (tickets.some(t => t.screeningId === screeningId && t.userId === req.user.userId)) {
       return res.status(400).json({ error: 'Je hebt al een ticket voor deze voorstelling' });
     }
-    // verlaag beschikbaarheid
     scr.availableSeats--;
     saveJson('screenings.json', screenings);
-    // maak nieuw ticket
     const newTicket = {
       id: tickets.length ? tickets[tickets.length - 1].id + 1 : 1,
       screeningId,
@@ -209,6 +207,22 @@ app.post(
     };
     tickets.push(newTicket);
     saveJson('tickets.json', tickets);
+    // Broadcast update
+    broadcast({
+      type: 'updateSeats',
+      screeningId,
+      availableSeats: scr.availableSeats
+  }
+);
+
+// ---- Availability endpoint for real-time updates ----
+app.get('/screenings/:id/tickets', (req, res) => {
+  const screeningId = parseInt(req.params.id, 10);
+  const screenings = loadJson('screenings.json');
+  const scr = screenings.find(s => s.id === screeningId);
+  if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
+  res.json({ availableSeats: scr.availableSeats });
+    });
     res.status(201).json(newTicket);
   }
 );
@@ -222,5 +236,23 @@ app.get('/screenings/:id/tickets', (req, res) => {
   res.json({ availableSeats: scr.availableSeats });
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Server draait op http://localhost:${PORT}`));
+// Zet Express om in HTTP-server en koppel WebSocket
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+// Broadcast helper
+function broadcast(data) {
+  const msg = JSON.stringify(data);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  });
+}
+
+wss.on('connection', ws => {
+  console.log('Nieuwe WebSocket-verbinding');
+});
+
+// Start server inclusief WebSocket
+server.listen(PORT, () => console.log(`Server & WS draaien op http://localhost:${PORT}`));
