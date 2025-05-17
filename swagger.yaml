@@ -1,0 +1,387 @@
+openapi: 3.0.0
+info:
+  title: Cinema API
+  description: API voor filmlijst, voorstellingen en ticketreserveringen
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000
+    description: Local server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          description: Kies 'user' of 'manager'
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT-token
+    UserResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+        username:
+          type: string
+        role:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        overview:
+          type: string
+        release_date:
+          type: string
+          format: date
+        poster_path:
+          type: string
+    MoviesResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+        movies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Movie'
+    Screening:
+      type: object
+      required: [movieId, startTime, totalSeats]
+      properties:
+        id:
+          type: integer
+        movieId:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        totalSeats:
+          type: integer
+        availableSeats:
+          type: integer
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+        screeningId:
+          type: integer
+        userId:
+          type: integer
+    AvailableSeatsResponse:
+      type: object
+      properties:
+        availableSeats:
+          type: integer
+paths:
+  /register:
+    post:
+      summary: Gebruiker registreren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registratie geslaagd
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Gebruikersnaam bestaat al
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /login:
+    post:
+      summary: Gebruiker inloggen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login geslaagd
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Ongeldige inloggegevens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /me:
+    get:
+      summary: Huidige gebruiker gegevens
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Gebruikersinformatie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Geen token meegegeven
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Ongeldig token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /movies:
+    get:
+      summary: Populaire films ophalen
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Lijst van films
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviesResponse'
+        '500':
+          description: Serverfout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /screenings:
+    get:
+      summary: Alle voorstellingen ophalen
+      responses:
+        '200':
+          description: Lijst van voorstellingen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Screening'
+    post:
+      summary: Nieuwe voorstelling
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Screening'
+      responses:
+        '201':
+          description: Voorstelling aangemaakt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Screening'
+        '401':
+          description: Geen token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Niet geautoriseerd (manager nodig)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /screenings/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    put:
+      summary: Voorstelling bijwerken
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Screening'
+      responses:
+        '200':
+          description: Voorstelling geüpdatet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Screening'
+        '400':
+          description: Ongeldige id of body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Geen token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Niet geautoriseerd (manager nodig)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Voorstelling niet gevonden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Voorstelling verwijderen
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Verwijderd
+        '401':
+          description: Geen token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Niet geautoriseerd (manager nodig)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Voorstelling niet gevonden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /reserve:
+    post:
+      summary: Ticket reserveren
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [screeningId]
+              properties:
+                screeningId:
+                  type: integer
+      responses:
+        '201':
+          description: Ticket aangemaakt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: Fout bij reserveren (geen plaatsen of al gereserveerd)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Geen token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Alleen gebruikers mogen reserveren
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Voorstelling niet gevonden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /screenings/{id}/tickets:
+    get:
+      summary: Beschikbaarheid van stoelen
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Beschikbare stoelen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableSeatsResponse'
+        '404':
+          description: Voorstelling niet gevonden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+security:
+  - bearerAuth: []
