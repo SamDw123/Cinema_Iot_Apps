@@ -19,9 +19,9 @@ if (token) {
   // Toon manager‑controls
   if (role === 'manager') {
     const btn = document.createElement('button');
-    btn.textContent = '+ Nieuwe voorstelling';
+    btn.textContent = 'Bewerk voorstellingen';
     btn.onclick = () => {
-      window.location.href = '/new-screening.html'; 
+      window.location.href = '/manager.html'; 
       // of open modal
     };
     authBtn.insertAdjacentElement('afterend', btn);
