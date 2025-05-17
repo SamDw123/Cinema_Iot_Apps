@@ -254,5 +254,20 @@ wss.on('connection', ws => {
   console.log('Nieuwe WebSocket-verbinding');
 });
 
+const YAML = require('yamljs');
+const swaggerUi = require('swagger-ui-express');
+
+// laad je aparte YAML-file
+const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
+
+// mount de UI
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, { explorer: true })
+);
+
+
+
 // Start server inclusief WebSocket
 server.listen(PORT, () => console.log(`Server & WS draaien op http://localhost:${PORT}`));

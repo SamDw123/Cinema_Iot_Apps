@@ -1,18 +1,37 @@
 [
   {
-    "id": 1,
-    "movieId": 550,
-    "title": "Fight Club",
-    "poster_path": "/a26cQPRhJPX6GbWfQbvZdrrp9j9.jpg",
-    "startTime": "2025-05-20T19:30:00",
-    "totalSeats": 2,
-    "availableSeats": 0
-  },
-  {
     "id": 2,
     "movieId": 20,
     "startTime": "2025-06-01T20:00:00Z",
     "totalSeats": 2,
     "availableSeats": 1
+  },
+  {
+    "id": 3,
+    "movieId": 10,
+    "startTime": "2025-05-17T13:55:13.279Z",
+    "totalSeats": 2,
+    "availableSeats": 2
+  },
+  {
+    "id": 4,
+    "movieId": 10,
+    "startTime": "2025-05-17T13:55:13.279Z",
+    "totalSeats": 2,
+    "availableSeats": 2
+  },
+  {
+    "id": 5,
+    "movieId": 10,
+    "startTime": "2025-05-17T13:55:13.279Z",
+    "totalSeats": 2,
+    "availableSeats": 2
+  },
+  {
+    "id": 6,
+    "movieId": 10,
+    "startTime": "2025-05-17T13:55:13.279Z",
+    "totalSeats": 2,
+    "availableSeats": 2
   }
 ]
