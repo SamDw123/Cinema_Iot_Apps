@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "screeningId": 2,
+    "userId": 2
+  },
+  {
+    "id": 2,
+    "screeningId": 1,
+    "userId": 2
+  },
+  {
+    "id": 3,
+    "screeningId": 1,
+    "userId": 3
+  }
+]

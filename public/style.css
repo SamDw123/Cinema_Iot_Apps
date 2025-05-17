@@ -10,6 +10,23 @@ header {
   margin-bottom: 2rem;
 }
 
+section {
+  margin-top: 2rem;
+}
+
+#screenings-list {
+  list-style: none;
+  padding: 0;
+}
+
+#screenings-list li {
+  background: #fff;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.3rem;
+}
+
+
 #movies-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -26,4 +43,19 @@ header {
 .movie-card img {
   max-width: 100%;
   border-radius: 0.5rem;
+}
+
+/* LOGIN PAGE */
+.login-container {
+  max-width: 300px;
+  margin: 5rem auto;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.login-container label {
+  display: block;
+  margin-bottom: 1rem;
 }
