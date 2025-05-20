@@ -4,15 +4,8 @@
     "movieId": 550,
     "title": "Fight Club",
     "poster_path": "/a26cQPRhJPX6GbWfQbvZdrrp9j9.jpg",
-    "startTime": "2025-01-22T18:30",
-    "totalSeats": 45,
+    "startTime": "2025-01-04T18:30",
+    "totalSeats": 42,
     "availableSeats": 50
-  },
-  {
-    "id": 2,
-    "movieId": 574475,
-    "startTime": "2025-05-24T19:46",
-    "totalSeats": 22,
-    "availableSeats": 22
   }
 ]
