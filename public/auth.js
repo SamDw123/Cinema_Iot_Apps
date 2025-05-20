@@ -3,6 +3,16 @@ const registerBtn = document.getElementById('register-btn');
 const token       = localStorage.getItem('token');
 const role        = localStorage.getItem('role');
 
+function handleAuthError(res) {
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    window.location.href = '/login.html';
+    return true;
+  }
+  return false;
+}
+
 if (token) {
   // --- INGLOGD ---
   // Login knop wordt nu "Logout"

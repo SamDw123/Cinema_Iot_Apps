@@ -1,6 +1,16 @@
 const form = document.getElementById('login-form');
 const errorEl = document.getElementById('login-error');
 
+function handleAuthError(res) {
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    window.location.href = '/login.html';
+    return true;
+  }
+  return false;
+}
+
 form.addEventListener('submit', async e => {
   e.preventDefault();
   errorEl.style.display = 'none';
@@ -31,6 +41,7 @@ form.addEventListener('submit', async e => {
     const meRes = await fetch('http://localhost:4000/me', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
+    if (handleAuthError(meRes)) return;
     const user = await meRes.json();
 
     // Rol in localStorage
