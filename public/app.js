@@ -24,6 +24,12 @@ function renderMovies(movies) {
 async function fetchScreenings() {
   try {
     const res = await fetch('http://localhost:4000/screenings');
+    
+    // Add auth error handling for endpoints that might require authentication
+    if (res.headers.get('content-type')?.includes('application/json')) {
+      if (handleAuthError(res)) return [];
+    }
+    
     const data = await res.json();
     return data;
   } catch (err) {

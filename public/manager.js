@@ -15,19 +15,10 @@ const headers = {
     'Authorization': 'Bearer ' + token
 };
 
-function handleAuthError(res) {
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    window.location.href = '/login.html';
-    return true;
-  }
-  return false;
-}
-
 async function populateMovieSelect() {
     try {
         const res = await fetch('http://localhost:4000/movies', { headers });
+        if (handleAuthError(res)) return;
         const { movies } = await res.json();
         movies.forEach(m => {
             const opt = document.createElement('option');
@@ -44,6 +35,7 @@ async function populateMovieSelect() {
 async function loadScreenings() {
     try {
         const res = await fetch('http://localhost:4000/screenings', { headers });
+        if (handleAuthError(res)) return [];
         return await res.json();
     } catch (e) {
         loadError.textContent = e.message;
@@ -97,6 +89,7 @@ addForm.addEventListener('submit', async e => {
             method: 'POST',
             headers, body: JSON.stringify(payload)
         });
+        if (handleAuthError(res)) return;
         if (!res.ok) throw new Error((await res.json()).error || 'Kon niet toevoegen');
         addForm.reset();
         await refresh();
@@ -119,6 +112,7 @@ grid.addEventListener('click', async e => {
             const res = await fetch(`http://localhost:4000/screenings/${id}`, {
                 method: 'DELETE', headers
             });
+            if (handleAuthError(res)) return;
             if (!res.ok) throw new Error('Kon niet verwijderen');
             await refresh();
         } catch (err) {
@@ -153,6 +147,7 @@ grid.addEventListener('click', async e => {
                     headers,
                     body: JSON.stringify({ startTime: newStart, totalSeats: newTotal })
                 });
+                if (handleAuthError(res)) return;
                 if (!res.ok) throw new Error('Kon niet bijwerken');
                 await refresh();
             } catch (err) {

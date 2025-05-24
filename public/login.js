@@ -1,14 +1,12 @@
 const form = document.getElementById('login-form');
 const errorEl = document.getElementById('login-error');
 
-function handleAuthError(res) {
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    window.location.href = '/login.html';
-    return true;
-  }
-  return false;
+// Show stored auth error if present
+const storedError = localStorage.getItem('auth_error');
+if (storedError) {
+  errorEl.textContent = storedError;
+  errorEl.style.display = 'block';
+  localStorage.removeItem('auth_error'); // Clear the error after showing
 }
 
 form.addEventListener('submit', async e => {
