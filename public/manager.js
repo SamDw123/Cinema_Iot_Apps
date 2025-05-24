@@ -18,6 +18,7 @@ const headers = {
 async function populateMovieSelect() {
     try {
         const res = await fetch('http://localhost:4000/movies', { headers });
+        if (handleAuthError(res)) return;
         const { movies } = await res.json();
         movies.forEach(m => {
             const opt = document.createElement('option');
@@ -34,6 +35,7 @@ async function populateMovieSelect() {
 async function loadScreenings() {
     try {
         const res = await fetch('http://localhost:4000/screenings', { headers });
+        if (handleAuthError(res)) return [];
         return await res.json();
     } catch (e) {
         loadError.textContent = e.message;
@@ -56,7 +58,7 @@ function renderScreenings(screenings) {
         <img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title}">
         <h3>${s.title}</h3>
         <div class="info">
-          <div><strong>Start:</strong> <span class="start-text">${formatDateTime(s.startTime)}</span></div>
+          <div><strong>Start:</strong> <span class="start-text" data-raw-date="${s.startTime}">${formatDateTime(s.startTime)}</span></div>
           <div><strong>Stoelen:</strong> <span class="seats-text">${s.availableSeats}/${s.totalSeats}</span></div>
         </div>
         <div class="controls">
@@ -87,6 +89,7 @@ addForm.addEventListener('submit', async e => {
             method: 'POST',
             headers, body: JSON.stringify(payload)
         });
+        if (handleAuthError(res)) return;
         if (!res.ok) throw new Error((await res.json()).error || 'Kon niet toevoegen');
         addForm.reset();
         await refresh();
@@ -109,6 +112,7 @@ grid.addEventListener('click', async e => {
             const res = await fetch(`http://localhost:4000/screenings/${id}`, {
                 method: 'DELETE', headers
             });
+            if (handleAuthError(res)) return;
             if (!res.ok) throw new Error('Kon niet verwijderen');
             await refresh();
         } catch (err) {
@@ -118,19 +122,22 @@ grid.addEventListener('click', async e => {
 
     // Bewerken / Opslaan
     if (e.target.matches('.edit-btn')) {
-        const btn = e.target;
-        const startSpan = card.querySelector('.start-text');
-        const seatsSpan = card.querySelector('.seats-text');
+    const btn = e.target;
+    const startSpan = card.querySelector('.start-text');
+    const seatsSpan = card.querySelector('.seats-text');
 
-        if (btn.textContent === 'Bewerk') {
-            // Zet om naar inputs
-            const oldStart = new Date(startSpan.textContent).toISOString().slice(0, 16);
-            const [avail, total] = seatsSpan.textContent.split('/').map(n => Number(n));
-            startSpan.innerHTML = `<input type="datetime-local" class="edit-input" value="${oldStart}">`;
-            seatsSpan.innerHTML = `<input type="number" min="1" class="edit-input" value="${total}">`;
-            btn.textContent = 'Opslaan';
-            btn.classList.add('cancel'); // optioneel styling
-        } else {
+    if (btn.textContent === 'Bewerk') {
+        // Zet om naar inputs
+        const rawDate = startSpan.dataset.rawDate;
+        // Converteer naar lokaal datetime-local formaat (YYYY-MM-DDThh:mm)
+        const dateValue = rawDate ? rawDate.substring(0, 16) : '';
+        
+        const [avail, total] = seatsSpan.textContent.split('/').map(n => Number(n));
+        startSpan.innerHTML = `<input type="datetime-local" class="edit-input" value="${dateValue}">`;
+        seatsSpan.innerHTML = `<input type="number" min="1" class="edit-input" value="${total}">`;
+        btn.textContent = 'Opslaan';
+        btn.classList.add('cancel'); // optioneel styling
+    } else {
             // Opslaan
             const newStart = card.querySelector('input[type="datetime-local"]').value;
             const newTotal = Number(card.querySelector('input[type="number"]').value);
@@ -140,6 +147,7 @@ grid.addEventListener('click', async e => {
                     headers,
                     body: JSON.stringify({ startTime: newStart, totalSeats: newTotal })
                 });
+                if (handleAuthError(res)) return;
                 if (!res.ok) throw new Error('Kon niet bijwerken');
                 await refresh();
             } catch (err) {
