@@ -128,17 +128,40 @@ app.get('/movies', async (req, res) => {
 });
 
 // ---- Screenings CRUD ----
-app.get('/screenings', (req, res) => {
+app.get('/screenings', async (req, res) => {
   const screenings = loadJson('screenings.json');
-  res.json(screenings);
+  
+  // Fetch movie details for screenings missing title/poster
+  const updatedScreenings = [];
+  for (const screening of screenings) {
+    if (!screening.title || !screening.poster_path) {
+      try {
+        // Fetch movie details from TMDB
+        const movieData = await tmdb.get(`/movie/${screening.movieId}`);
+        screening.title = movieData.data.title;
+        screening.poster_path = movieData.data.poster_path;
+      } catch (err) {
+        console.error(`Failed to fetch details for movie ID ${screening.movieId}:`, err.message);
+        // Continue with missing data
+      }
+    }
+    updatedScreenings.push(screening);
+  }
+  
+  // Optionally save the updated screenings back to the file
+  saveJson('screenings.json', updatedScreenings);
+  
+  res.json(updatedScreenings);
 });
 app.post(
   '/screenings',
   authenticateJWT,
   authorizeRole('manager'),
-  (req, res) => {
+  async (req, res) => {
     const screenings = loadJson('screenings.json');
     const { movieId, startTime, totalSeats } = req.body;
+    
+    // Create new screening
     const newScreening = {
       id: screenings.length ? screenings[screenings.length - 1].id + 1 : 1,
       movieId,
@@ -146,6 +169,17 @@ app.post(
       totalSeats,
       availableSeats: totalSeats
     };
+    
+    // Fetch movie details from TMDB
+    try {
+      const movieData = await tmdb.get(`/movie/${movieId}`);
+      newScreening.title = movieData.data.title;
+      newScreening.poster_path = movieData.data.poster_path;
+    } catch (err) {
+      console.error(`Failed to fetch details for movie ID ${movieId}:`, err.message);
+      // Continue without movie details
+    }
+    
     screenings.push(newScreening);
     saveJson('screenings.json', screenings);
     res.status(201).json(newScreening);

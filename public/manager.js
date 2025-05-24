@@ -55,8 +55,10 @@ function renderScreenings(screenings) {
         card.className = 'card';
         card.dataset.id = s.id;
         card.innerHTML = `
-        <img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title}">
-        <h3>${s.title}</h3>
+        ${s.poster_path 
+          ? `<img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title || 'Film'}">`
+          : '<div class="no-poster" style="height:100px;background:#eee;display:flex;justify-content:center;align-items:center">Geen poster</div>'}
+        <h3>${s.title || `Film ID: ${s.movieId}`}</h3>
         <div class="info">
           <div><strong>Start:</strong> <span class="start-text" data-raw-date="${s.startTime}">${formatDateTime(s.startTime)}</span></div>
           <div><strong>Stoelen:</strong> <span class="seats-text">${s.availableSeats}/${s.totalSeats}</span></div>

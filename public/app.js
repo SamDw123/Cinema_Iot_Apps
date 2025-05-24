@@ -39,19 +39,26 @@ async function fetchScreenings() {
 }
 
 function renderScreenings(screenings, movies) {
-  const list = document.getElementById('screenings-list');
+  const container = document.getElementById('screenings-list');
   if (!screenings.length) {
-    list.innerHTML = '<li>Geen voorstellingen beschikbaar.</li>';
+    container.innerHTML = '<div class="no-screenings">Geen voorstellingen beschikbaar.</div>';
     return;
   }
 
-  list.innerHTML = screenings.map(s => `
-    <li>
-      <strong>${s.title}</strong><br/>
-      <img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title}"/><br/>
-      ${new Date(s.startTime).toLocaleString()}<br/>
-      ${s.availableSeats}/${s.totalSeats} vrij
-    </li>
+  // Match manager dashboard styling
+  container.className = 'screenings-grid';
+  
+  container.innerHTML = screenings.map(s => `
+    <div class="card">
+      ${s.poster_path 
+        ? `<img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title || 'Film'}">`
+        : '<div class="no-poster" style="height:100px;background:#eee;display:flex;justify-content:center;align-items:center">Geen poster</div>'}
+      <h3>${s.title || `Film ID: ${s.movieId}`}</h3>
+      <div class="info">
+        <div><strong>Start:</strong> ${new Date(s.startTime).toLocaleString()}</div>
+        <div><strong>Stoelen:</strong> ${s.availableSeats}/${s.totalSeats}</div>
+      </div>
+    </div>
   `).join('');
 }
 
