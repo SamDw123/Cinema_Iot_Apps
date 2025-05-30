@@ -28,5 +28,11 @@
     "username": "jorenM",
     "passwordHash": "$2b$10$urDocCqm5AFROw60pmJ1g.dl/DOqyT/dJ0iyBAKmExjdtCaPBZey.",
     "role": "manager"
+  },
+  {
+    "id": 6,
+    "username": "joren",
+    "passwordHash": "$2b$10$ocBlWGokewDY0o/8C9asJuFgxcajGwR4EQ9ngKurNxNh/2AMXlPLm",
+    "role": "user"
   }
 ]

@@ -221,43 +221,52 @@ app.post(
     if (req.user.role !== 'user') {
       return res.status(403).json({ error: 'Alleen gewone gebruikers mogen reserveren' });
     }
-    const { screeningId } = req.body;
+    const { screeningId, quantity = 1 } = req.body;
     const screenings = loadJson('screenings.json');
     const tickets = loadJson('tickets.json');
     const scr = screenings.find(s => s.id === screeningId);
+    
+    // Validate screening exists
     if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
-    if (scr.availableSeats < 1) {
-      return res.status(400).json({ error: 'Geen plaatsen meer beschikbaar' });
+    
+    // Check if enough seats are available
+    if (scr.availableSeats < quantity) {
+      return res.status(400).json({ error: `Niet genoeg plaatsen beschikbaar (${scr.availableSeats} beschikbaar)` });
     }
-    if (tickets.some(t => t.screeningId === screeningId && t.userId === req.user.userId)) {
-      return res.status(400).json({ error: 'Je hebt al een ticket voor deze voorstelling' });
+    
+    // Create tickets
+    const newTickets = [];
+    let lastId = tickets.length ? tickets[tickets.length - 1].id : 0;
+    
+    for (let i = 0; i < quantity; i++) {
+      lastId++;
+      const newTicket = {
+        id: lastId,
+        screeningId,
+        userId: req.user.userId
+      };
+      tickets.push(newTicket);
+      newTickets.push(newTicket);
     }
-    scr.availableSeats--;
+    
+    // Update available seats
+    scr.availableSeats -= quantity;
+    
+    // Save changes
     saveJson('screenings.json', screenings);
-    const newTicket = {
-      id: tickets.length ? tickets[tickets.length - 1].id + 1 : 1,
-      screeningId,
-      userId: req.user.userId
-    };
-    tickets.push(newTicket);
     saveJson('tickets.json', tickets);
+    
     // Broadcast update
     broadcast({
       type: 'updateSeats',
       screeningId,
       availableSeats: scr.availableSeats
-  }
-);
-
-// ---- Availability endpoint for real-time updates ----
-app.get('/screenings/:id/tickets', (req, res) => {
-  const screeningId = parseInt(req.params.id, 10);
-  const screenings = loadJson('screenings.json');
-  const scr = screenings.find(s => s.id === screeningId);
-  if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
-  res.json({ availableSeats: scr.availableSeats });
     });
-    res.status(201).json(newTicket);
+    
+    res.status(201).json({
+      tickets: newTickets,
+      quantity: quantity
+    });
   }
 );
 
@@ -268,6 +277,41 @@ app.get('/screenings/:id/tickets', (req, res) => {
   const scr = screenings.find(s => s.id === screeningId);
   if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
   res.json({ availableSeats: scr.availableSeats });
+});
+
+// ---- User tickets endpoint ----
+app.get('/my-tickets', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const tickets = loadJson('tickets.json').filter(t => t.userId === userId);
+    const screenings = loadJson('screenings.json');
+    
+    // Enrich tickets with screening and movie information
+    const enrichedTickets = [];
+    
+    for (const ticket of tickets) {
+      const screening = screenings.find(s => s.id === ticket.screeningId);
+      if (!screening) continue;
+      
+      // Clone to avoid modifying the original object
+      const enrichedTicket = {
+        ...ticket,
+        screening: {
+          id: screening.id,
+          startTime: screening.startTime,
+          title: screening.title || `Film ID: ${screening.movieId}`,
+          poster_path: screening.poster_path || null
+        }
+      };
+      
+      enrichedTickets.push(enrichedTicket);
+    }
+    
+    res.json(enrichedTickets);
+  } catch (err) {
+    console.error('Error fetching tickets:', err);
+    res.status(500).json({ error: 'Kon tickets niet ophalen' });
+  }
 });
 
 // Zet Express om in HTTP-server en koppel WebSocket
@@ -294,14 +338,8 @@ const swaggerUi = require('swagger-ui-express');
 // laad je aparte YAML-file
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 
-// mount de UI
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument, { explorer: true })
-);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-
-
-// Start server inclusief WebSocket
-server.listen(PORT, () => console.log(`Server & WS draaien op http://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

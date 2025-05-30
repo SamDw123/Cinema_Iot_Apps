@@ -26,15 +26,25 @@ if (token) {
   // Verberg de Registreren‑knop
   registerBtn.style.display = 'none';
 
+  // Add tickets button for users
+  if (role === 'user') {
+    const btn = document.createElement('button');
+    btn.textContent = 'Mijn Tickets';
+    btn.classList.add('tickets-btn');
+    btn.onclick = () => {
+      window.location.href = '/tickets.html';
+    };
+    authBtn.insertAdjacentElement('beforebegin', btn);
+  }
+
   // Toon manager‑controls
   if (role === 'manager') {
     const btn = document.createElement('button');
     btn.textContent = 'Bewerk voorstellingen';
     btn.onclick = () => {
       window.location.href = '/manager.html'; 
-      // of open modal
     };
-    authBtn.insertAdjacentElement('afterend', btn);
+    authBtn.insertAdjacentElement('beforebegin', btn);
   }
 
 } else {

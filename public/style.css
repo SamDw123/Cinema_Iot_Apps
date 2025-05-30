@@ -159,3 +159,111 @@ section {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
 }
+
+/* Add these styles at the end of style.css */
+
+.reserve-btn {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.reserve-btn:hover {
+  background-color: #45a049;
+}
+
+.reserve-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.reservation-message {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.reservation-message.success {
+  background-color: #dff2bf;
+  color: #4F8A10;
+}
+
+.reservation-message.error {
+  background-color: #ffbaba;
+  color: #D8000C;
+}
+
+.sold-out {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #f8d7da;
+  color: #721c24;
+  text-align: center;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.login-note {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #d1ecf1;
+  color: #0c5460;
+  text-align: center;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+.reservation-form {
+  margin-top: 10px;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quantity-selector label {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.quantity-select {
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.home-link {
+  color: #007BFF;
+  text-decoration: none;
+  margin-right: 15px;
+}
+
+.home-link:hover {
+  text-decoration: underline;
+}
+
+.tickets-btn {
+  margin-right: 10px;
+  padding: 6px 12px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tickets-btn:hover {
+  background-color: #138496;
+}

@@ -48,27 +48,182 @@ function renderScreenings(screenings, movies) {
   // Match manager dashboard styling
   container.className = 'screenings-grid';
   
+  // Get user role to conditionally show reserve button
+  const userLoggedIn = localStorage.getItem('token') ? true : false;
+  const userRole = localStorage.getItem('role');
+  
   container.innerHTML = screenings.map(s => `
-    <div class="card">
+    <div class="card" data-id="${s.id}">
       ${s.poster_path 
         ? `<img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title || 'Film'}">`
         : '<div class="no-poster" style="height:100px;background:#eee;display:flex;justify-content:center;align-items:center">Geen poster</div>'}
       <h3>${s.title || `Film ID: ${s.movieId}`}</h3>
       <div class="info">
         <div><strong>Start:</strong> ${new Date(s.startTime).toLocaleString()}</div>
-        <div><strong>Stoelen:</strong> ${s.availableSeats}/${s.totalSeats}</div>
+        <div><strong>Stoelen:</strong> <span class="seats-count" data-id="${s.id}">${s.availableSeats}/${s.totalSeats}</span></div>
       </div>
+      ${userLoggedIn && userRole === 'user' && s.availableSeats > 0 ? 
+        `<div class="reservation-form">
+          <div class="quantity-selector">
+            <label for="quantity-${s.id}">Aantal tickets:</label>
+            <select id="quantity-${s.id}" class="quantity-select">
+              ${Array.from({length: Math.min(s.availableSeats, 10)}, (_, i) => i + 1)
+                .map(num => `<option value="${num}">${num}</option>`).join('')}
+            </select>
+          </div>
+          <button class="reserve-btn" data-id="${s.id}">Reserveer Ticket(s)</button>
+        </div>` : 
+        userRole === 'user' && s.availableSeats === 0 ? 
+          '<p class="sold-out">Uitverkocht</p>' : 
+          (!userLoggedIn ? '<p class="login-note">Log in om te reserveren</p>' : '')
+      }
+      <div class="reservation-message" data-id="${s.id}" style="display:none;"></div>
     </div>
   `).join('');
+  
+  // Add event listeners for reservation buttons
+  if (userLoggedIn && userRole === 'user') {
+    document.querySelectorAll('.reserve-btn').forEach(btn => {
+      btn.addEventListener('click', handleReservation);
+    });
+  }
 }
 
+// Handle ticket reservation
+async function handleReservation(e) {
+  const btn = e.target;
+  const screeningId = parseInt(btn.dataset.id, 10);
+  const quantitySelect = document.getElementById(`quantity-${screeningId}`);
+  const quantity = parseInt(quantitySelect.value, 10);
+  const token = localStorage.getItem('token');
+  const messageEl = document.querySelector(`.reservation-message[data-id="${screeningId}"]`);
+  
+  btn.disabled = true;
+  btn.textContent = 'Bezig...';
+  
+  try {
+    const res = await fetch('http://localhost:4000/reserve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ screeningId, quantity })
+    });
+    
+    if (handleAuthError(res)) return;
+    
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Reservering mislukt');
+    }
+    
+    const response = await res.json();
+    
+    // Show success message
+    messageEl.textContent = `${quantity} ticket(s) succesvol gereserveerd!`;
+    messageEl.style.display = 'block';
+    messageEl.className = 'reservation-message success';
+    
+    // REMOVE THIS SECTION - Let WebSocket handle the update
+    // const seatsEl = document.querySelector(`.seats-count[data-id="${screeningId}"]`);
+    // if (seatsEl) {
+    //   const [available, total] = seatsEl.textContent.split('/').map(n => parseInt(n, 10));
+    //   seatsEl.textContent = `${available - quantity}/${total}`;
+    // }
+    
+    // Remove the reservation form
+    const formEl = btn.closest('.reservation-form');
+    formEl.style.display = 'none';
+    
+  } catch (err) {
+    // Show error message
+    messageEl.textContent = err.message;
+    messageEl.style.display = 'block';
+    messageEl.className = 'reservation-message error';
+    
+    // Re-enable the button
+    btn.disabled = false;
+    btn.textContent = 'Reserveer Ticket(s)';
+  }
+}
 
-// Bij laden van de pagina
+// WebSocket connection for real-time updates
+let socket;
+
+function connectWebSocket() {
+  socket = new WebSocket('ws://localhost:4000');
+  
+  socket.addEventListener('open', () => {
+    console.log('WebSocket connected');
+  });
+  
+  socket.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'updateSeats') {
+        // Update UI when seat availability changes
+        const seatsEl = document.querySelector(`.seats-count[data-id="${data.screeningId}"]`);
+        if (seatsEl) {
+          const [_, total] = seatsEl.textContent.split('/').map(n => parseInt(n, 10));
+          seatsEl.textContent = `${data.availableSeats}/${total}`;
+          
+          // Update the reservation button/form if needed
+          const card = document.querySelector(`.card[data-id="${data.screeningId}"]`);
+          if (card) {
+            const formEl = card.querySelector('.reservation-form');
+            const soldOut = card.querySelector('.sold-out');
+            
+            if (data.availableSeats <= 0 && formEl) {
+              // Replace form with sold out message
+              formEl.remove();
+              if (!soldOut) {
+                const soldOutEl = document.createElement('p');
+                soldOutEl.className = 'sold-out';
+                soldOutEl.textContent = 'Uitverkocht';
+                card.appendChild(soldOutEl);
+              }
+            } else if (data.availableSeats > 0 && formEl) {
+              // Update the quantity selector to reflect available seats
+              const quantitySelect = formEl.querySelector('.quantity-select');
+              if (quantitySelect) {
+                const currentValue = parseInt(quantitySelect.value, 10);
+                quantitySelect.innerHTML = Array.from(
+                  {length: Math.min(data.availableSeats, 10)}, 
+                  (_, i) => i + 1
+                ).map(num => 
+                  `<option value="${num}" ${num === currentValue ? 'selected' : ''}>${num}</option>`
+                ).join('');
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('WebSocket message error:', err);
+    }
+  });
+  
+  socket.addEventListener('close', () => {
+    console.log('WebSocket disconnected, reconnecting...');
+    setTimeout(connectWebSocket, 3000);
+  });
+  
+  socket.addEventListener('error', (err) => {
+    console.error('WebSocket error:', err);
+    socket.close();
+  });
+}
+
+// Initialize WebSocket when page loads
 window.addEventListener('DOMContentLoaded', async () => {
   const movies = await fetchMovies();
   renderMovies(movies);
 
   const screenings = await fetchScreenings();
   renderScreenings(screenings, movies);
+  
+  // Connect to WebSocket for real-time updates
+  connectWebSocket();
 });
 
