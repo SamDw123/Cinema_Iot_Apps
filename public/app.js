@@ -11,12 +11,17 @@ async function fetchMovies(page = 1) {
   }
 }
 
+// Update the renderMovies function to use the new styling
 function renderMovies(movies) {
   container.innerHTML = movies.map(movie => `
-    <div class="movie-card">
-      <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}">
-      <h2>${movie.title}</h2>
-      <p>${movie.release_date}</p>
+    <div class="card">
+      ${movie.poster_path 
+        ? `<img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title}" class="card-img">` 
+        : `<div class="no-poster">Geen afbeelding beschikbaar</div>`}
+      <div class="card-body">
+        <h3 class="card-title">${movie.title}</h3>
+        <p class="text-muted">${new Date(movie.release_date).toLocaleDateString()}</p>
+      </div>
     </div>
   `).join('');
 }
@@ -38,10 +43,11 @@ async function fetchScreenings() {
   }
 }
 
+// Update the renderScreenings function to use the new styling
 function renderScreenings(screenings, movies) {
   const container = document.getElementById('screenings-list');
   if (!screenings.length) {
-    container.innerHTML = '<div class="no-screenings">Geen voorstellingen beschikbaar.</div>';
+    container.innerHTML = '<div class="alert alert-info">Geen voorstellingen beschikbaar.</div>';
     return;
   }
 
@@ -55,29 +61,31 @@ function renderScreenings(screenings, movies) {
   container.innerHTML = screenings.map(s => `
     <div class="card" data-id="${s.id}">
       ${s.poster_path 
-        ? `<img src="https://image.tmdb.org/t/p/w200${s.poster_path}" alt="${s.title || 'Film'}">`
-        : '<div class="no-poster" style="height:100px;background:#eee;display:flex;justify-content:center;align-items:center">Geen poster</div>'}
-      <h3>${s.title || `Film ID: ${s.movieId}`}</h3>
-      <div class="info">
-        <div><strong>Start:</strong> ${new Date(s.startTime).toLocaleString()}</div>
-        <div><strong>Stoelen:</strong> <span class="seats-count" data-id="${s.id}">${s.availableSeats}/${s.totalSeats}</span></div>
+        ? `<img src="https://image.tmdb.org/t/p/w500${s.poster_path}" alt="${s.title || 'Film'}" class="card-img">` 
+        : '<div class="no-poster">Geen poster beschikbaar</div>'}
+      <div class="card-body">
+        <h3 class="card-title">${s.title || `Film ID: ${s.movieId}`}</h3>
+        <div class="info">
+          <div><strong>Start:</strong> ${new Date(s.startTime).toLocaleString()}</div>
+          <div><strong>Stoelen:</strong> <span class="seats-count" data-id="${s.id}">${s.availableSeats}/${s.totalSeats}</span></div>
+        </div>
+        ${userLoggedIn && userRole === 'user' && s.availableSeats > 0 ? 
+          `<div class="reservation-form">
+            <div class="quantity-selector">
+              <label for="quantity-${s.id}">Aantal tickets:</label>
+              <select id="quantity-${s.id}" class="quantity-select">
+                ${Array.from({length: Math.min(s.availableSeats, 10)}, (_, i) => i + 1)
+                  .map(num => `<option value="${num}">${num}</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn btn-success reserve-btn" data-id="${s.id}">Reserveer</button>
+          </div>` : 
+          userRole === 'user' && s.availableSeats === 0 ? 
+            '<p class="sold-out">Uitverkocht</p>' : 
+            (!userLoggedIn ? '<p class="login-note">Log in om te reserveren</p>' : '')
+        }
+        <div class="reservation-message" data-id="${s.id}" style="display:none;"></div>
       </div>
-      ${userLoggedIn && userRole === 'user' && s.availableSeats > 0 ? 
-        `<div class="reservation-form">
-          <div class="quantity-selector">
-            <label for="quantity-${s.id}">Aantal tickets:</label>
-            <select id="quantity-${s.id}" class="quantity-select">
-              ${Array.from({length: Math.min(s.availableSeats, 10)}, (_, i) => i + 1)
-                .map(num => `<option value="${num}">${num}</option>`).join('')}
-            </select>
-          </div>
-          <button class="reserve-btn" data-id="${s.id}">Reserveer Ticket(s)</button>
-        </div>` : 
-        userRole === 'user' && s.availableSeats === 0 ? 
-          '<p class="sold-out">Uitverkocht</p>' : 
-          (!userLoggedIn ? '<p class="login-note">Log in om te reserveren</p>' : '')
-      }
-      <div class="reservation-message" data-id="${s.id}" style="display:none;"></div>
     </div>
   `).join('');
   

@@ -4,23 +4,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bioscoop Films</title>
+  <title>Cinema App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <header>
-    <h1>Populaire Films</h1>
-    <button id="auth-btn"></button>
-    <button id="register-btn" style="display:none">Registreren</button>
-  </header>
-  <main id="movies-container">
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="navbar-container">
+      <a href="/" class="navbar-brand">
+        <span class="navbar-logo">🎬</span>
+        Cinema App
+      </a>
 
+      <ul class="nav-menu">
+        <li class="nav-item"><a href="/" class="active">Home</a></li>
+        <li class="nav-item"><a href="#movies">Films</a></li>
+        <li class="nav-item"><a href="#screenings">Voorstellingen</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button id="tickets-btn" class="btn btn-info" style="display:none;">
+          <span>🎟️</span> Mijn Tickets
+        </button>
+        <button id="auth-btn" class="btn btn-primary"></button>
+        <button id="register-btn" class="btn btn-outline" style="display:none;">Registreren</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Movies Section -->
+    <section class="section" id="movies">
+      <div class="section-header">
+        <h2 class="section-title">Populaire Films</h2>
+      </div>
+      <div id="movies-container" class="movies-grid"></div>
+    </section>
+
+    <!-- Screenings Section -->
+    <section class="section" id="screenings">
+      <div class="section-header">
+        <h2 class="section-title">Voorstellingen</h2>
+      </div>
+      <div id="screenings-list" class="screenings-grid"></div>
+    </section>
   </main>
-  <section>
-    <h2>Voorstellingen</h2>
-    <div id="screenings-list" class="movie-grid"></div>
-  </section>
+
   <script src="auth-utils.js"></script>
   <script src="app.js"></script>
   <script src="auth.js"></script>
