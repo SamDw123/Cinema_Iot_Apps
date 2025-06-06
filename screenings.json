@@ -6,7 +6,7 @@
     "poster_path": "/a26cQPRhJPX6GbWfQbvZdrrp9j9.jpg",
     "startTime": "2025-01-04T18:30",
     "totalSeats": 35,
-    "availableSeats": 43
+    "availableSeats": 32
   },
   {
     "id": 2,
@@ -22,7 +22,7 @@
     "movieId": 1197306,
     "startTime": "2025-05-10T14:36",
     "totalSeats": 23,
-    "availableSeats": 23,
+    "availableSeats": 12,
     "title": "A Working Man",
     "poster_path": "/6FRFIogh3zFnVWn7Z6zcYnIbRcX.jpg"
   },
@@ -31,7 +31,7 @@
     "movieId": 1232546,
     "startTime": "2025-06-08T14:43",
     "totalSeats": 97,
-    "availableSeats": 96,
+    "availableSeats": 95,
     "title": "Until Dawn",
     "poster_path": "/juA4IWO52Fecx8lhAsxmDgy3M3.jpg"
   }
