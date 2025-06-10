@@ -157,8 +157,9 @@ async function handleReservation(e) {
 }
 
 // WebSocket connection for real-time updates
-let socket;
 
+// For websocket
+/*let socket;
 function connectWebSocket() {
   socket = new WebSocket('ws://localhost:4000');
   
@@ -222,6 +223,58 @@ function connectWebSocket() {
     socket.close();
   });
 }
+*/
+let mqttClient;
+
+function connectMQTT() {
+  const options = {
+    clientId: 'cinema_client_' + Math.random().toString(16).substr(2, 8),
+    clean: true,
+    connectTimeout: 4000,
+    debug: true,
+    reconnectPeriod: 1000
+  };
+
+  console.log('Attempting MQTT connection...');
+  mqttClient = mqtt.connect('ws://localhost:9001', options);
+
+  mqttClient.on('connect', () => {
+    console.log('Connected to MQTT broker');
+    mqttClient.subscribe('cinema_sam123/seats/#', (err) => {
+      if (!err) {
+        console.log('Subscribed to seat updates');
+      }
+    });
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('MQTT Error:', err);
+  });
+
+  mqttClient.on('close', () => {
+    console.log('MQTT connection closed');
+  });
+
+  mqttClient.on('reconnect', () => {
+    console.log('Attempting to reconnect to MQTT broker...');
+  });
+
+  mqttClient.on('message', (topic, message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      console.log('MQTT message received:', data);
+      if (data.type === 'updateSeats') {
+        const seatsEl = document.querySelector(`.seats-count[data-id="${data.screeningId}"]`);
+        if (seatsEl) {
+          const [_, total] = seatsEl.textContent.split('/');
+          seatsEl.textContent = `${data.availableSeats}/${total}`;
+        }
+      }
+    } catch (err) {
+      console.error('MQTT message error:', err);
+    }
+  });
+}
 
 // Initialize WebSocket when page loads
 window.addEventListener('DOMContentLoaded', async () => {
@@ -232,6 +285,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderScreenings(screenings, movies);
   
   // Connect to WebSocket for real-time updates
-  connectWebSocket();
+  //connectWebSocket();  // for websocket
+  connectMQTT();
 });
 

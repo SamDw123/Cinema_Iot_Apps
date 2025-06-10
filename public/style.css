@@ -439,3 +439,34 @@ main {
     gap: 8px;
   }
 }
+
+/* Add to existing styles */
+.ticket-qr {
+  padding: 16px;
+  background-color: #f5f5f7;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.qr-code {
+  display: inline-block;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.qr-code svg {
+  display: block;
+  width: 128px;
+  height: 128px;
+}
+
+/* For multiple tickets in one card */
+.ticket-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}

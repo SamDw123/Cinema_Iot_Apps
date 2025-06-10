@@ -8,6 +8,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadUserTickets();
 });
 
+function generateQRCode(ticketData) {
+  const qr = qrcode(0, 'L');
+  qr.addData(JSON.stringify(ticketData));
+  qr.make();
+  return qr.createSvgTag({ cellSize: 4, margin: 2 });
+}
+
 async function loadUserTickets() {
   const ticketsGrid = document.getElementById('tickets-grid');
   const token = localStorage.getItem('token');
@@ -68,6 +75,15 @@ async function loadUserTickets() {
         </div>
         <div class="ticket-qr">
           <p>Ticket ID${st.count > 1 ? 's' : ''}: ${st.tickets.map(t => t.id).join(', ')}</p>
+          ${st.tickets.map(ticket => `
+            <div class="qr-code">
+              ${generateQRCode({
+                id: ticket.id,
+                screeningId: ticket.screeningId,
+                userId: ticket.userId
+              })}
+            </div>
+          `).join('')}
         </div>
       </div>
     `).join('');

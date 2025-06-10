@@ -7,10 +7,19 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const WebSocket = require('ws');
+const nodemailer = require('nodemailer');
+// const WebSocket = require('ws');
+const mqtt = require('mqtt');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const server = http.createServer(app);
+
+const client = mqtt.connect('mqtt://localhost:1883', {
+  clientId: 'cinema_server_' + Math.random().toString(16).substr(2, 8),
+  clean: true
+});
+const MQTT_TOPIC = 'cinema_sam123/seats/updates';
 
 // CORS voor frontend
 app.use(cors({
@@ -48,6 +57,15 @@ function saveJson(filename, data) {
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES = '1h';
 
+// Email configuratie
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
+
 // Auth middleware
 function authenticateJWT(req, res, next) {
   const header = req.headers.authorization;
@@ -70,15 +88,19 @@ function authorizeRole(role) {
 
 // ---- Auth routes ----
 app.post('/register', (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, email, role } = req.body;
   const users = loadJson('users.json');
   if (users.some(u => u.username === username)) {
     return res.status(400).json({ error: 'Gebruikersnaam bestaat al' });
+  }
+  if (users.some(u => u.email === email)) {
+    return res.status(400).json({ error: 'Email bestaat al' });
   }
   bcrypt.hash(password, 10).then(hash => {
     const newUser = {
       id: users.length ? users[users.length - 1].id + 1 : 1,
       username,
+      email,
       passwordHash: hash,
       role: role === 'manager' ? 'manager' : 'user'
     };
@@ -217,14 +239,17 @@ app.delete(
 app.post(
   '/reserve',
   authenticateJWT,
-  (req, res) => {
+  async (req, res) => {
     if (req.user.role !== 'user') {
       return res.status(403).json({ error: 'Alleen gewone gebruikers mogen reserveren' });
     }
+
     const { screeningId, quantity = 1 } = req.body;
     const screenings = loadJson('screenings.json');
     const tickets = loadJson('tickets.json');
+    const users = loadJson('users.json');
     const scr = screenings.find(s => s.id === screeningId);
+    const user = users.find(u => u.id === req.user.userId);
     
     // Validate screening exists
     if (!scr) return res.status(404).json({ error: 'Voorstelling niet gevonden' });
@@ -256,12 +281,35 @@ app.post(
     saveJson('screenings.json', screenings);
     saveJson('tickets.json', tickets);
     
-    // Broadcast update
-    broadcast({
+    // Broadcast update via WebSocket
+    publishSeatUpdate({
       type: 'updateSeats',
       screeningId,
       availableSeats: scr.availableSeats
     });
+
+    // Stuur bevestigingsmail
+    try {
+      await transporter.sendMail({
+        from: 'samdewispelaere@gmail.com',
+        to: user.email,
+        subject: 'Ticket Reservering Bevestiging',
+        html: `
+          <h1>Je reservering is bevestigd!</h1>
+          <p>Beste ${user.username},</p>
+          <p>Je hebt succesvol ${quantity} ticket(s) gereserveerd voor:</p>
+          <ul>
+            <li>Film: ${scr.title}</li>
+            <li>Datum: ${new Date(scr.startTime).toLocaleString()}</li>
+            <li>Ticket ID(s): ${newTickets.map(t => t.id).join(', ')}</li>
+          </ul>
+          <p>Tot ziens in de bioscoop!</p>
+        `
+      });
+    } catch (error) {
+      console.error('Error sending confirmation email:', error);
+      // We laten de reservering doorgaan zelfs als de mail faalt
+    }
     
     res.status(201).json({
       tickets: newTickets,
@@ -315,22 +363,31 @@ app.get('/my-tickets', authenticateJWT, async (req, res) => {
 });
 
 // Zet Express om in HTTP-server en koppel WebSocket
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+//const server = http.createServer(app);
+//const wss = new WebSocket.Server({ server });
 
-// Broadcast helper
-function broadcast(data) {
+
+// Broadcast helper via websocket
+/*function broadcast(data) {
   const msg = JSON.stringify(data);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(msg);
     }
   });
+} */
+
+
+// MQTT instead of WebSocket for seat updates
+function publishSeatUpdate(data) {
+  client.publish(MQTT_TOPIC, JSON.stringify(data));
 }
 
+/*
 wss.on('connection', ws => {
   console.log('Nieuwe WebSocket-verbinding');
 });
+*/
 
 const YAML = require('yamljs');
 const swaggerUi = require('swagger-ui-express');

@@ -34,5 +34,12 @@
     "username": "joren",
     "passwordHash": "$2b$10$ocBlWGokewDY0o/8C9asJuFgxcajGwR4EQ9ngKurNxNh/2AMXlPLm",
     "role": "user"
+  },
+  {
+    "id": 7,
+    "username": "sam1",
+    "email": "samdewispelaere@gmail.com",
+    "passwordHash": "$2b$10$RfWqo7IHO7857W07f5KgyutAsb.lq9KPwYXXJS00dMepyB2Ix.T.2",
+    "role": "user"
   }
 ]

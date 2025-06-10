@@ -9,6 +9,7 @@ form.addEventListener('submit', async e => {
   const payload = {
     username: fd.get('username'),
     password: fd.get('password'),
+    email: fd.get('email'),
     role: fd.get('role')
   };
 
