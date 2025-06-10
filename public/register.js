@@ -8,6 +8,7 @@ form.addEventListener('submit', async e => {
   const fd = new FormData(form);
   const payload = {
     username: fd.get('username'),
+    email: fd.get('email'),
     password: fd.get('password'),
     role: fd.get('role')
   };
@@ -25,6 +26,7 @@ form.addEventListener('submit', async e => {
     }
 
     // Succes: doorsturen naar login
+    alert('Registratie geslaagd! Je kunt nu inloggen.');
     window.location.href = '/login.html';
   } catch (err) {
     errorEl.textContent = err.message;

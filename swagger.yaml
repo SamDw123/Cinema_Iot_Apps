@@ -17,11 +17,15 @@ components:
       type: object
       required:
         - username
+        - email
         - password
         - role
       properties:
         username:
           type: string
+        email:
+          type: string
+          format: email
         password:
           type: string
         role:
@@ -47,6 +51,8 @@ components:
         userId:
           type: integer
         username:
+          type: string
+        email:
           type: string
         role:
           type: string
@@ -128,7 +134,7 @@ paths:
                   message:
                     type: string
         '400':
-          description: Gebruikersnaam bestaat al
+          description: Gebruikersnaam of email bestaat al
           content:
             application/json:
               schema:
@@ -330,13 +336,31 @@ paths:
               properties:
                 screeningId:
                   type: integer
+                quantity:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  maximum: 10
       responses:
         '201':
-          description: Ticket aangemaakt
+          description: Ticket aangemaakt en email verzonden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ticket'
+                type: object
+                properties:
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ticket'
+                  quantity:
+                    type: integer
+                  message:
+                    type: string
+                  emailSent:
+                    type: boolean
+                  emailMessage:
+                    type: string
         '400':
           description: Fout bij reserveren (geen plaatsen of al gereserveerd)
           content:

@@ -52,7 +52,7 @@ async function loadUserTickets() {
       screeningTickets[ticket.screeningId].tickets.push(ticket);
     });
     
-    // Render tickets
+    // Render tickets with QR codes
     ticketsGrid.innerHTML = Object.values(screeningTickets).map(st => `
       <div class="ticket-card">
         <div class="ticket-header">
@@ -67,7 +67,20 @@ async function loadUserTickets() {
           <p><strong>Tijd:</strong> ${new Date(st.screening.startTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>
         </div>
         <div class="ticket-qr">
-          <p>Ticket ID${st.count > 1 ? 's' : ''}: ${st.tickets.map(t => t.id).join(', ')}</p>
+          <p><strong>Ticket ID${st.count > 1 ? 's' : ''}: ${st.tickets.map(t => t.id).join(', ')}</strong></p>
+          <div class="qr-codes-grid">
+            ${st.tickets.map(ticket => 
+              ticket.qrCode ? 
+              `<div class="qr-code-item">
+                <p>Ticket ${ticket.id}</p>
+                <img src="${ticket.qrCode}" alt="QR Code voor ticket ${ticket.id}" class="qr-code-img" />
+              </div>` :
+              `<div class="qr-code-item">
+                <p>Ticket ${ticket.id}</p>
+                <p class="qr-error">QR code niet beschikbaar</p>
+              </div>`
+            ).join('')}
+          </div>
         </div>
       </div>
     `).join('');

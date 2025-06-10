@@ -8,6 +8,8 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
+const QRCode = require('qrcode');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -68,17 +70,90 @@ function authorizeRole(role) {
   };
 }
 
+// Email transporter setup
+const emailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+// Email helper function
+async function sendTicketEmail(userEmail, userName, tickets, screening) {
+  const ticketIds = tickets.map(t => t.id).join(', ');
+  const qrCodes = tickets.filter(t => t.qrCode).map(t => ({
+    filename: `ticket-${t.id}.png`,
+    content: t.qrCode.split(',')[1], // Remove data:image/png;base64, prefix
+    encoding: 'base64',
+    cid: `qr-${t.id}`
+  }));
+
+  const qrCodesHTML = tickets.map(t => 
+    t.qrCode ? 
+    `<div style="margin: 10px; text-align: center;">
+      <p><strong>Ticket ID: ${t.id}</strong></p>
+      <img src="cid:qr-${t.id}" alt="QR Code voor ticket ${t.id}" style="max-width: 200px; border: 1px solid #ccc;"/>
+    </div>` : 
+    `<p>Ticket ID: ${t.id} (QR code niet beschikbaar)</p>`
+  ).join('');
+
+  const mailOptions = {
+    from: `"${process.env.FROM_NAME}" <${process.env.FROM_EMAIL}>`,
+    to: userEmail,
+    subject: `Ticket bevestiging - ${screening.title}`,
+    html: `
+      <h2>Ticket Bevestiging</h2>
+      <p>Beste ${userName},</p>
+      <p>Bedankt voor je reservering! Hier zijn je ticket details:</p>
+      
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3>Film: ${screening.title}</h3>
+        <p><strong>Datum:</strong> ${new Date(screening.startTime).toLocaleDateString('nl-NL')}</p>
+        <p><strong>Tijd:</strong> ${new Date(screening.startTime).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</p>
+        <p><strong>Ticket ID's:</strong> ${ticketIds}</p>
+        <p><strong>Aantal tickets:</strong> ${tickets.length}</p>
+      </div>
+      
+      <h3>QR Codes:</h3>
+      <p>Toon deze QR codes bij de ingang van de bioscoop:</p>
+      ${qrCodesHTML}
+      
+      <p>Bewaar deze email goed en kom 15 minuten voor aanvang naar de bioscoop.</p>
+      <p>Tot ziens bij de voorstelling!</p>
+      
+      <hr>
+      <p><small>Cinema App - Automatisch gegenereerde email</small></p>
+    `,
+    attachments: qrCodes
+  };
+
+  try {
+    await emailTransporter.sendMail(mailOptions);
+    console.log(`Email verzonden naar ${userEmail} voor tickets: ${ticketIds}`);
+    return true;
+  } catch (error) {
+    console.error('Email verzenden mislukt:', error);
+    return false;
+  }
+}
+
 // ---- Auth routes ----
 app.post('/register', (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, email } = req.body;
   const users = loadJson('users.json');
   if (users.some(u => u.username === username)) {
     return res.status(400).json({ error: 'Gebruikersnaam bestaat al' });
+  }
+  if (users.some(u => u.email === email)) {
+    return res.status(400).json({ error: 'Email bestaat al' });
   }
   bcrypt.hash(password, 10).then(hash => {
     const newUser = {
       id: users.length ? users[users.length - 1].id + 1 : 1,
       username,
+      email,
       passwordHash: hash,
       role: role === 'manager' ? 'manager' : 'user'
     };
@@ -217,13 +292,16 @@ app.delete(
 app.post(
   '/reserve',
   authenticateJWT,
-  (req, res) => {
+  async (req, res) => {
+    // Check user role
     if (req.user.role !== 'user') {
       return res.status(403).json({ error: 'Alleen gewone gebruikers mogen reserveren' });
     }
+    
     const { screeningId, quantity = 1 } = req.body;
     const screenings = loadJson('screenings.json');
     const tickets = loadJson('tickets.json');
+    const users = loadJson('users.json');
     const scr = screenings.find(s => s.id === screeningId);
     
     // Validate screening exists
@@ -234,7 +312,23 @@ app.post(
       return res.status(400).json({ error: `Niet genoeg plaatsen beschikbaar (${scr.availableSeats} beschikbaar)` });
     }
     
-    // Create tickets
+    // QR Code generator helper
+    async function generateQRCode(ticketData) {
+      try {
+        const qrData = JSON.stringify({
+          ticketId: ticketData.id,
+          screeningId: ticketData.screeningId,
+          userId: ticketData.userId,
+          timestamp: new Date().toISOString()
+        });
+        return await QRCode.toDataURL(qrData);
+      } catch (err) {
+        console.error('QR code generation failed:', err);
+        return null;
+      }
+    }
+    
+    // Create tickets with QR codes
     const newTickets = [];
     let lastId = tickets.length ? tickets[tickets.length - 1].id : 0;
     
@@ -245,6 +339,13 @@ app.post(
         screeningId,
         userId: req.user.userId
       };
+      
+      // Generate QR code for this ticket
+      const qrCode = await generateQRCode(newTicket);
+      if (qrCode) {
+        newTicket.qrCode = qrCode;
+      }
+      
       tickets.push(newTicket);
       newTickets.push(newTicket);
     }
@@ -263,9 +364,23 @@ app.post(
       availableSeats: scr.availableSeats
     });
     
+    // Find the user by ID
+    const user = users.find(u => u.id === req.user.userId);
+    
+    // Send confirmation email
+    let emailSent = false;
+    if (user && user.email) {
+      emailSent = await sendTicketEmail(user.email, user.username, newTickets, scr);
+    }
+    
     res.status(201).json({
       tickets: newTickets,
-      quantity: quantity
+      quantity: quantity,
+      message: `${quantity} ticket(s) gereserveerd!`,
+      emailSent: emailSent,
+      emailMessage: emailSent ? 
+        `Bevestigingsmail verzonden naar ${user.email}` : 
+        'Email kon niet verzonden worden'
     });
   }
 );
@@ -286,16 +401,26 @@ app.get('/my-tickets', authenticateJWT, async (req, res) => {
     const tickets = loadJson('tickets.json').filter(t => t.userId === userId);
     const screenings = loadJson('screenings.json');
     
-    // Enrich tickets with screening and movie information
     const enrichedTickets = [];
     
     for (const ticket of tickets) {
       const screening = screenings.find(s => s.id === ticket.screeningId);
       if (!screening) continue;
       
-      // Clone to avoid modifying the original object
+      // Generate QR code if it doesn't exist
+      let qrCode = ticket.qrCode;
+      if (!qrCode) {
+        qrCode = await generateQRCode(ticket);
+        // Optionally save the generated QR code back to the ticket
+        if (qrCode) {
+          ticket.qrCode = qrCode;
+          saveJson('tickets.json', loadJson('tickets.json')); // Reload and save to avoid conflicts
+        }
+      }
+      
       const enrichedTicket = {
         ...ticket,
+        qrCode: qrCode,
         screening: {
           id: screening.id,
           startTime: screening.startTime,

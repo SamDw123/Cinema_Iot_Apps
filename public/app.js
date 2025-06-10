@@ -59,7 +59,7 @@ function renderScreenings(screenings, movies) {
   const userRole = localStorage.getItem('role');
   
   container.innerHTML = screenings.map(s => `
-    <div class="card" data-id="${s.id}">
+    <div class="card" data-screening-id="${s.id}">
       ${s.poster_path 
         ? `<img src="https://image.tmdb.org/t/p/w500${s.poster_path}" alt="${s.title || 'Film'}" class="card-img">` 
         : '<div class="no-poster">Geen poster beschikbaar</div>'}
@@ -67,15 +67,16 @@ function renderScreenings(screenings, movies) {
         <h3 class="card-title">${s.title || `Film ID: ${s.movieId}`}</h3>
         <div class="info">
           <div><strong>Start:</strong> ${new Date(s.startTime).toLocaleString()}</div>
-          <div><strong>Stoelen:</strong> <span class="seats-count" data-id="${s.id}">${s.availableSeats}/${s.totalSeats}</span></div>
+          <div><strong>Stoelen:</strong> <span class="seats-count">${s.availableSeats}/${s.totalSeats}</span></div>
         </div>
         ${userLoggedIn && userRole === 'user' && s.availableSeats > 0 ? 
           `<div class="reservation-form">
-            <div class="quantity-selector">
-              <label for="quantity-${s.id}">Aantal tickets:</label>
-              <select id="quantity-${s.id}" class="quantity-select">
+            <div class="form-group">
+              <label class="form-label">Aantal tickets:</label>
+              <select class="form-select quantity-select">
                 ${Array.from({length: Math.min(s.availableSeats, 10)}, (_, i) => i + 1)
-                  .map(num => `<option value="${num}">${num}</option>`).join('')}
+                  .map(num => `<option value="${num}">${num}</option>`)
+                  .join('')}
               </select>
             </div>
             <button class="btn btn-success reserve-btn" data-id="${s.id}">Reserveer</button>
@@ -100,16 +101,17 @@ function renderScreenings(screenings, movies) {
 // Handle ticket reservation
 async function handleReservation(e) {
   const btn = e.target;
-  const screeningId = parseInt(btn.dataset.id, 10);
-  const quantitySelect = document.getElementById(`quantity-${screeningId}`);
-  const quantity = parseInt(quantitySelect.value, 10);
-  const token = localStorage.getItem('token');
-  const messageEl = document.querySelector(`.reservation-message[data-id="${screeningId}"]`);
+  const screeningId = parseInt(btn.dataset.id);
+  const card = btn.closest('.card');
+  const quantitySelect = card.querySelector('.quantity-select');
+  const quantity = parseInt(quantitySelect.value);
+  const messageDiv = card.querySelector('.reservation-message');
   
   btn.disabled = true;
-  btn.textContent = 'Bezig...';
+  btn.textContent = 'Reserveren...';
   
   try {
+    const token = localStorage.getItem('token');
     const res = await fetch('http://localhost:4000/reserve', {
       method: 'POST',
       headers: {
@@ -121,117 +123,165 @@ async function handleReservation(e) {
     
     if (handleAuthError(res)) return;
     
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Reservering mislukt');
+    const data = await res.json();
+    
+    if (res.ok) {
+      messageDiv.innerHTML = `
+        <div class="alert alert-success">
+          <strong>Gelukt!</strong> ${data.message}
+          ${data.emailSent ? `<br><small>${data.emailMessage}</small>` : ''}
+        </div>
+      `;
+      messageDiv.style.display = 'block';
+      
+      // Refresh screenings to show updated seat count
+      loadScreenings();
+    } else {
+      throw new Error(data.error || 'Reservering mislukt');
     }
-    
-    const response = await res.json();
-    
-    // Show success message
-    messageEl.textContent = `${quantity} ticket(s) succesvol gereserveerd!`;
-    messageEl.style.display = 'block';
-    messageEl.className = 'reservation-message success';
-    
-    // REMOVE THIS SECTION - Let WebSocket handle the update
-    // const seatsEl = document.querySelector(`.seats-count[data-id="${screeningId}"]`);
-    // if (seatsEl) {
-    //   const [available, total] = seatsEl.textContent.split('/').map(n => parseInt(n, 10));
-    //   seatsEl.textContent = `${available - quantity}/${total}`;
-    // }
-    
-    // Remove the reservation form
-    const formEl = btn.closest('.reservation-form');
-    formEl.style.display = 'none';
-    
   } catch (err) {
-    // Show error message
-    messageEl.textContent = err.message;
-    messageEl.style.display = 'block';
-    messageEl.className = 'reservation-message error';
-    
-    // Re-enable the button
+    messageDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    messageDiv.style.display = 'block';
+  } finally {
     btn.disabled = false;
-    btn.textContent = 'Reserveer Ticket(s)';
+    btn.textContent = 'Reserveer';
   }
 }
 
 // WebSocket connection for real-time updates
 let socket;
+let mqttClient = null;
+let communicationMethod = 'websocket';
 
 function connectWebSocket() {
   socket = new WebSocket('ws://localhost:4000');
   
-  socket.addEventListener('open', () => {
-    console.log('WebSocket connected');
-  });
+  socket.onopen = () => {
+    console.log('WebSocket verbonden');
+  };
   
-  socket.addEventListener('message', (event) => {
+  socket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.type === 'updateSeats') {
-        // Update UI when seat availability changes
-        const seatsEl = document.querySelector(`.seats-count[data-id="${data.screeningId}"]`);
-        if (seatsEl) {
-          const [_, total] = seatsEl.textContent.split('/').map(n => parseInt(n, 10));
-          seatsEl.textContent = `${data.availableSeats}/${total}`;
-          
-          // Update the reservation button/form if needed
-          const card = document.querySelector(`.card[data-id="${data.screeningId}"]`);
-          if (card) {
-            const formEl = card.querySelector('.reservation-form');
-            const soldOut = card.querySelector('.sold-out');
-            
-            if (data.availableSeats <= 0 && formEl) {
-              // Replace form with sold out message
-              formEl.remove();
-              if (!soldOut) {
-                const soldOutEl = document.createElement('p');
-                soldOutEl.className = 'sold-out';
-                soldOutEl.textContent = 'Uitverkocht';
-                card.appendChild(soldOutEl);
-              }
-            } else if (data.availableSeats > 0 && formEl) {
-              // Update the quantity selector to reflect available seats
-              const quantitySelect = formEl.querySelector('.quantity-select');
-              if (quantitySelect) {
-                const currentValue = parseInt(quantitySelect.value, 10);
-                quantitySelect.innerHTML = Array.from(
-                  {length: Math.min(data.availableSeats, 10)}, 
-                  (_, i) => i + 1
-                ).map(num => 
-                  `<option value="${num}" ${num === currentValue ? 'selected' : ''}>${num}</option>`
-                ).join('');
-              }
-            }
-          }
-        }
-      }
+      handleRealtimeUpdate(data);
     } catch (err) {
-      console.error('WebSocket message error:', err);
+      console.error('Error parsing WebSocket message:', err);
     }
-  });
+  };
   
-  socket.addEventListener('close', () => {
-    console.log('WebSocket disconnected, reconnecting...');
+  socket.onclose = () => {
+    console.log('WebSocket verbinding gesloten');
+    // Probeer opnieuw te verbinden na 3 seconden
     setTimeout(connectWebSocket, 3000);
-  });
+  };
   
-  socket.addEventListener('error', (err) => {
-    console.error('WebSocket error:', err);
-    socket.close();
-  });
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
 }
 
-// Initialize WebSocket when page loads
-window.addEventListener('DOMContentLoaded', async () => {
+function handleRealtimeUpdate(data) {
+  if (data.type === 'seatUpdate') {
+    const card = document.querySelector(`[data-screening-id="${data.screeningId}"]`);
+    if (card) {
+      const seatsEl = card.querySelector('.seats-count');
+      if (seatsEl) {
+        seatsEl.textContent = `${data.availableSeats}/${data.totalSeats}`;
+      }
+
+      // Update or remove reservation form
+      const formEl = card.querySelector('.reservation-form');
+      const soldOut = data.availableSeats === 0;
+      
+      if (soldOut && formEl) {
+        formEl.remove();
+        if (!card.querySelector('.sold-out')) {
+          const soldOutEl = document.createElement('p');
+          soldOutEl.className = 'sold-out';
+          soldOutEl.textContent = 'Uitverkocht';
+          card.appendChild(soldOutEl);
+        }
+      } else if (data.availableSeats > 0 && formEl) {
+        // Update quantity selector
+        const quantitySelect = formEl.querySelector('.quantity-select');
+        if (quantitySelect) {
+          const currentValue = parseInt(quantitySelect.value, 10);
+          quantitySelect.innerHTML = Array.from(
+            {length: Math.min(data.availableSeats, 10)}, 
+            (_, i) => i + 1
+          ).map(num => 
+            `<option value="${num}" ${num === currentValue ? 'selected' : ''}>${num}</option>`
+          ).join('');
+        }
+      }
+    }
+  }
+}
+
+// MQTT functions (for testing)
+async function initMQTT() {
+  try {
+    // Check if MQTT is available and enabled
+    const response = await fetch('http://localhost:4000/mqtt-status');
+    const status = await response.json();
+    
+    if (!status.enabled || !status.connected) {
+      console.log('MQTT not available, using WebSocket');
+      connectWebSocket();
+      return;
+    }
+
+    // For browser MQTT, we need a WebSocket-enabled broker
+    if (typeof mqtt !== 'undefined') {
+      mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+      
+      mqttClient.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        mqttClient.subscribe('cinema/screenings/updates');
+        communicationMethod = 'mqtt';
+      });
+
+      mqttClient.on('message', (topic, message) => {
+        try {
+          const data = JSON.parse(message.toString());
+          handleRealtimeUpdate(data);
+        } catch (err) {
+          console.error('Error parsing MQTT message:', err);
+        }
+      });
+
+      mqttClient.on('error', (err) => {
+        console.error('MQTT error, falling back to WebSocket:', err);
+        connectWebSocket();
+      });
+    } else {
+      console.log('MQTT client not available, using WebSocket');
+      connectWebSocket();
+    }
+  } catch (err) {
+    console.log('Could not initialize MQTT, using WebSocket:', err);
+    connectWebSocket();
+  }
+}
+
+// Load functions
+async function loadMovies() {
   const movies = await fetchMovies();
   renderMovies(movies);
+}
 
+async function loadScreenings() {
   const screenings = await fetchScreenings();
-  renderScreenings(screenings, movies);
+  renderScreenings(screenings);
+}
+
+// Initialize everything
+document.addEventListener('DOMContentLoaded', () => {
+  loadMovies();
+  loadScreenings();
+  checkAuthStatus();
   
-  // Connect to WebSocket for real-time updates
-  connectWebSocket();
+  // Try MQTT first, fallback to WebSocket
+  initMQTT();
 });
 
